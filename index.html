@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laser Ball</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap">
+<style>
+/* Layout: full-bleed arena canvas, slim HUD along the top, centered overlay card for start / game over.
+   Single dark look by choice: a neon arcade screen. */
+:root {
+  --bg: #0a0d18;
+  --arena: #0e1324;
+  --grid: #19203a;
+  --fg: #e8ecff;
+  --muted: #8b93b8;
+  --ball: #5df2ff;
+  --beam: #ff3d81;
+  --warn: #ffc247;
+  --font-display: "Chakra Petch", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-display);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#stage { position: relative; width: 100%; height: 100%; }
+canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.hud {
+  position: absolute; left: 0; right: 0; top: 0;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 16px; pointer-events: none;
+  font-weight: 700; letter-spacing: .12em; text-transform: uppercase; font-size: 13px;
+}
+.hud > div { min-width: 0; }
+.hud .label { color: var(--muted); font-size: 11px; display: block; }
+.hud .val { font-size: 22px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+.lives { display: flex; gap: 6px; }
+.lives i { width: 14px; height: 14px; border-radius: 50%; background: var(--ball); box-shadow: 0 0 10px var(--ball); }
+.lives i.off { background: transparent; box-shadow: none; border: 2px solid var(--grid); }
+.heat { width: min(34vw, 190px); }
+.heat .bar { height: 10px; border: 2px solid var(--grid); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+.heat .fill { height: 100%; width: 0; background: var(--beam); box-shadow: 0 0 12px var(--beam); }
+.heat.over .fill { background: var(--warn); box-shadow: 0 0 12px var(--warn); }
+.heat.over .label { color: var(--warn); }
+.overlay {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(8, 10, 20, .72);
+}
+.overlay[hidden] { display: none; }
+.card { max-width: 420px; text-align: left; }
+.card h1 { margin: 0 0 6px; font-size: clamp(40px, 11vw, 64px); line-height: .95; letter-spacing: .02em; text-transform: uppercase; text-wrap: balance; }
+.card h1 span { color: var(--beam); text-shadow: 0 0 22px var(--beam); }
+.card p { margin: 10px 0 0; color: var(--muted); font-size: 16px; line-height: 1.45; font-weight: 500; }
+.keys { display: flex; gap: 6px; margin-top: 18px; align-items: center; flex-wrap: wrap; }
+.keys kbd {
+  display: inline-grid; place-items: center; width: 34px; height: 34px;
+  border: 2px solid var(--grid); border-radius: 8px; color: var(--ball);
+  font: 700 15px var(--font-display);
+}
+.keys em { font-style: normal; color: var(--muted); margin-inline: 6px; }
+button {
+  margin-top: 22px; padding: 12px 28px; border: 0; border-radius: 10px;
+  background: var(--beam); color: #1a0710; font: 700 17px var(--font-display);
+  letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--beam) 55%, transparent);
+}
+button:hover { filter: brightness(1.1); }
+.modes { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+button.mode {
+  margin: 0; width: 100%; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left;
+  padding: 12px 16px; background: transparent; color: var(--fg); border: 2px solid var(--grid); box-shadow: none;
+  text-transform: none; letter-spacing: 0; font-size: 14px; font-weight: 500;
+}
+button.mode b { font-size: 18px; letter-spacing: .1em; text-transform: uppercase; color: var(--ball); }
+button.mode span { color: var(--muted); line-height: 1.35; }
+button.mode:hover { filter: none; border-color: var(--beam); box-shadow: 0 0 18px color-mix(in srgb, var(--beam) 35%, transparent); }
+.menu-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.coinline { margin-top: 16px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; font-size: 12px; }
+.coinline b, .coins b { color: #ffd23f; font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.coin { width: 14px; height: 14px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 10px #ffd23f; display: inline-block; flex: none; }
+#shop { background: rgba(8, 10, 20, .94); }
+#admin { background: rgba(6, 8, 16, .9); }
+.adm { width: min(660px, 100%); max-height: 100%; overflow-y: auto; background: #0c1020; border: 2px solid var(--grid); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.adm button { margin-top: 0; }
+.adm section { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.adm section[hidden] { display: none; }
+.adm .tabs { margin-top: 0; }
+.admhead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.admhead h2 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: .06em; }
+.admhead button { padding: 8px 16px; font-size: 13px; }
+.admtag { color: var(--warn); font-size: 13px; line-height: 1.4; }
+.admtag:empty { display: none; }
+.console { background: #070a14; border: 2px solid var(--grid); border-radius: 8px; height: 170px; overflow-y: auto; padding: 8px 10px; font: 12px/1.55 ui-monospace, Menlo, Consolas, monospace; color: var(--muted); user-select: text; -webkit-user-select: text; }
+.console div { white-space: pre-wrap; overflow-wrap: anywhere; }
+.console .echo { color: var(--fg); }
+.console .ok { color: var(--ball); }
+.console .err { color: var(--warn); }
+.cmdrow { display: flex; gap: 8px; align-items: center; }
+.prompt { color: var(--beam); font-weight: 700; }
+.adm input[type=text], .adm input[type=number] { flex: 1; min-width: 0; width: 100%; background: #070a14; color: var(--fg); border: 2px solid var(--grid); border-radius: 8px; padding: 9px 10px; font: 500 14px ui-monospace, Menlo, Consolas, monospace; }
+.adm input:focus-visible { outline: 2px solid var(--beam); outline-offset: 1px; }
+.adm input[type=checkbox] { accent-color: var(--beam); width: 16px; height: 16px; flex: none; }
+.cmdrow button { padding: 9px 16px; font-size: 13px; }
+.quick { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+button.qb { padding: 9px 10px; font-size: 12px; letter-spacing: .06em; background: transparent; color: var(--fg); border: 2px solid var(--grid); box-shadow: none; text-transform: uppercase; }
+button.qb.on { border-color: var(--ball); color: var(--ball); }
+button.qb.danger { color: var(--warn); }
+.crgrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 560px) { .crgrid { grid-template-columns: minmax(0, 1fr); } }
+.crform { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.crform label, .tun label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.crform label.chk, .tun label.chk { flex-direction: row; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--fg); }
+.crform input[type=color] { width: 100%; height: 40px; border: 2px solid var(--grid); border-radius: 8px; background: #070a14; padding: 2px; }
+.crform input[type=color]:disabled { opacity: .35; }
+.crside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.crside canvas { width: 100%; height: auto; border-radius: 8px; border: 2px solid var(--grid); display: block; }
+.crtitle { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+#crList { display: flex; flex-direction: column; gap: 6px; }
+.crrow { display: flex; align-items: center; gap: 8px; border: 2px solid var(--grid); border-radius: 8px; padding: 6px 8px; font-size: 13px; min-width: 0; }
+.crrow .nm { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.crrow .nm small { display: block; color: var(--muted); font-size: 11px; }
+.sw { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.crrow button { padding: 5px 10px; font-size: 11px; background: transparent; border: 2px solid var(--grid); color: var(--fg); box-shadow: none; }
+.msg { color: var(--ball); font-size: 13px; min-height: 1em; }
+.tun { display: flex; flex-direction: column; gap: 12px; }
+.tun label.sl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+.tun label.sl input { grid-column: 1 / -1; accent-color: var(--beam); width: 100%; }
+.tun output { color: var(--ball); font-weight: 700; font-size: 14px; letter-spacing: 0; }
+#adminBtn {
+  position: absolute; left: 16px; bottom: 6px; margin: 0; padding: 4px 10px; z-index: 2;
+  background: transparent; color: var(--muted); border: 2px solid var(--grid); border-radius: 8px; box-shadow: none;
+  font-size: 11px; letter-spacing: .12em;
+}
+#adminBtn:hover { color: var(--fg); filter: none; }
+.shopcard { width: min(680px, 100%); max-height: 100%; overflow-y: auto; padding: 4px; }
+.shophead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.shophead h2 { margin: 0; font-size: clamp(32px, 8vw, 48px); text-transform: uppercase; letter-spacing: .03em; line-height: 1; }
+.coins { display: flex; align-items: center; gap: 8px; }
+.shopnote { margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.tabs { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+button.tab { margin: 0; padding: 8px 16px; background: transparent; color: var(--muted); border: 2px solid var(--grid); box-shadow: none; font-size: 13px; }
+button.tab.on { color: var(--fg); border-color: var(--beam); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 14px; }
+.item { min-width: 0; border: 2px solid var(--grid); border-radius: 12px; padding: 8px; background: rgba(14, 19, 36, .85); display: flex; flex-direction: column; gap: 8px; }
+.item.eq { border-color: var(--ball); }
+.item canvas { width: 100%; height: auto; border-radius: 8px; display: block; }
+.iname { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 13px; }
+button.ibtn { margin: 0; padding: 8px 10px; font-size: 13px; letter-spacing: .08em; box-shadow: none; width: 100%; }
+button.ibtn.on { background: transparent; color: var(--ball); border: 2px solid var(--grid); cursor: default; }
+button.ibtn.buy { background: #ffd23f; color: #241a00; }
+button.ibtn.poor { background: transparent; color: var(--muted); border: 2px solid var(--grid); }
+.shopfoot { display: flex; align-items: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+.shopfoot button { margin: 0; }
+#shopMsg { color: var(--warn); font-weight: 500; }
+.earn { color: #ffd23f; font-weight: 700; margin-top: 8px; font-size: 18px; letter-spacing: .04em; }
+#mute {
+  position: absolute; right: 16px; bottom: 6px; margin: 0; padding: 4px 10px; z-index: 2;
+  background: transparent; color: var(--muted); border: 2px solid var(--grid); border-radius: 8px; box-shadow: none;
+  font-size: 11px; letter-spacing: .12em;
+}
+#mute:hover { color: var(--fg); filter: none; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+button.ghost { background: transparent; color: var(--fg); border: 2px solid var(--grid); box-shadow: none; }
+button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
+.score-line { font-size: 22px; color: var(--fg); font-weight: 700; margin-top: 14px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div class="hud" id="hud">
+    <div><span class="label">Score</span><span class="val" id="score">0</span></div>
+    <div><span class="label">Wave</span><span class="val" id="wave">1</span></div>
+    <div><span class="label">Lives</span><div class="lives" id="lives"></div></div>
+    <div class="heat" id="heat"><span class="label" id="heatLabel">Laser</span><div class="bar"><div class="fill" id="heatFill"></div></div></div>
+  </div>
+  <button id="mute" type="button">Sound on</button>
+  <button id="adminBtn" type="button">Admin</button>
+  <div class="overlay" id="start">
+    <div class="card">
+      <h1>Laser <span>Ball</span></h1>
+      <div id="menuView">
+        <p>Dodge the drifting rocks and cut them down. Big ones split in two. Your beam bounces off the walls up to three times, so use the angles. Every 10th wave is a boss. Beat the boss on wave 50 to win.</p>
+        <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><em>move</em><kbd>&#9679;</kbd><em>mouse aims, hold click to fire</em></div>
+        <div class="coinline"><i class="coin"></i>Coins <b id="coinsMenu">0</b></div>
+        <div class="menu-btns"><button id="play" type="button">Start game</button><button class="ghost" id="openShop" type="button">Shop</button></div>
+      </div>
+      <div id="modeView" hidden>
+        <p>Pick a difficulty.</p>
+        <div class="modes">
+          <button class="mode" data-mode="easy"><b>Easy</b><span>1 life &middot; strong laser &middot; never overheats</span></button>
+          <button class="mode" data-mode="normal"><b>Normal</b><span>2 lives &middot; laser 20% weaker &middot; 3 second cooldown</span></button>
+          <button class="mode" data-mode="hard"><b>Hard</b><span>3 lives &middot; laser 50% weaker &middot; you move 10% slower &middot; 3 second cooldown</span></button>
+        </div>
+        <button class="ghost" id="modeBack" type="button">Back</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="shop" hidden>
+    <div class="shopcard">
+      <div class="shophead"><h2>Shop</h2><div class="coins"><i class="coin"></i><b id="coinsShop">0</b></div></div>
+      <p class="shopnote">Earn coins by playing: 1 per 10 points, 2 per wave reached, 300 for a win.</p>
+      <div class="tabs"><button class="tab on" id="tabBall" type="button">Ball skins</button><button class="tab" id="tabLaser" type="button">Laser colors</button></div>
+      <div class="grid" id="shopGrid"></div>
+      <div class="shopfoot"><button class="ghost" id="shopBack" type="button">Back</button><span id="shopMsg"></span></div>
+    </div>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <div class="card">
+      <h1 id="overTitle">Ball <span>down</span></h1>
+      <div class="score-line" id="final"></div>
+      <p id="bestLine"></p>
+      <div class="earn" id="earned"></div>
+      <div class="row"><button id="again" type="button">Play again</button><button class="ghost" id="change" type="button">Change mode</button><button class="ghost" id="overShop" type="button">Shop</button></div>
+    </div>
+  </div>
+  <div class="overlay" id="admin" hidden>
+    <div class="adm">
+      <div class="admhead"><h2>Admin</h2><button class="ghost" id="admClose" type="button">Close</button></div>
+      <div class="admtag" id="admTag"></div>
+      <div class="tabs">
+        <button class="tab on" data-at="cmd" type="button">Commands</button>
+        <button class="tab" data-at="cre" type="button">Creator</button>
+        <button class="tab" data-at="tun" type="button">Tuning</button>
+      </div>
+      <section id="at-cmd">
+        <div class="console" id="console" role="log"></div>
+        <form id="cmdForm" class="cmdrow" autocomplete="off"><span class="prompt">&gt;</span><input id="cmdIn" type="text" spellcheck="false" placeholder="type a command, or help"><button type="submit">Run</button></form>
+        <div class="quick" id="quick">
+          <button type="button" class="qb" data-cmd="coins 1000">+1000 coins</button>
+          <button type="button" class="qb" data-cmd="god" data-state="god">God mode</button>
+          <button type="button" class="qb" data-cmd="infinite" data-state="inf">Infinite laser</button>
+          <button type="button" class="qb" data-cmd="freeze" data-state="freeze">Freeze rocks</button>
+          <button type="button" class="qb" data-cmd="heal">Heal</button>
+          <button type="button" class="qb" data-cmd="kill">Clear rocks</button>
+          <button type="button" class="qb" data-cmd="wave +1">Next wave</button>
+          <button type="button" class="qb" data-cmd="boss">Next boss</button>
+          <button type="button" class="qb" data-cmd="unlockall">Unlock all</button>
+          <button type="button" class="qb danger" id="qReset">Reset save</button>
+        </div>
+      </section>
+      <section id="at-cre" hidden>
+        <div class="crgrid">
+          <form id="crForm" class="crform" autocomplete="off">
+            <div class="tabs"><button class="tab on" id="crBall" type="button">Ball skin</button><button class="tab" id="crLaser" type="button">Laser color</button></div>
+            <label>Name<input id="crName" type="text" maxlength="16" placeholder="Neon Orange"></label>
+            <label>Color<input id="crColor" type="color" value="#ff8a3d"></label>
+            <label class="chk"><input id="crRainbow" type="checkbox"> Animated rainbow</label>
+            <label>Shop price<input id="crPrice" type="number" min="0" max="99999" value="0"></label>
+            <label class="chk"><input id="crOwn" type="checkbox" checked> Own it and equip it now</label>
+            <button type="submit">Create</button>
+            <div class="msg" id="crMsg"></div>
+          </form>
+          <div class="crside">
+            <canvas id="crCanvas" width="160" height="96"></canvas>
+            <div class="crtitle">Your creations</div>
+            <div id="crList"></div>
+          </div>
+        </div>
+      </section>
+      <section id="at-tun" hidden>
+        <div class="tun">
+          <label class="chk"><input id="tgGod" type="checkbox"> God mode, you take no damage</label>
+          <label class="chk"><input id="tgInf" type="checkbox"> Infinite laser, it never overheats</label>
+          <label class="chk"><input id="tgFreeze" type="checkbox"> Freeze rocks in place</label>
+          <label class="sl">Laser damage <output id="oDmg"></output><input id="tgDmg" type="range" min="0.25" max="5" step="0.25" value="1"></label>
+          <label class="sl">Move speed <output id="oSpd"></output><input id="tgSpd" type="range" min="0.5" max="2" step="0.1" value="1"></label>
+          <label class="sl">Rock speed <output id="oRock"></output><input id="tgRock" type="range" min="0" max="2" step="0.1" value="1"></label>
+          <label class="sl">Spawn rate <output id="oRate"></output><input id="tgRate" type="range" min="0.25" max="3" step="0.25" value="1"></label>
+          <button class="ghost" id="tgReset" type="button">Reset tuning</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var W = 0, H = 0, M = 22; // M = wall margin
+  var $ = function (id) { return document.getElementById(id); };
+  // ---------- sound: everything is synthesized with WebAudio, no files ----------
+  var AC = null, master = null, hum = null, muted = false;
+  try { muted = localStorage.getItem('laserball-muted') === '1'; } catch (e) {}
+  var trail = [], flash = 0, banner = null, tickT = 0;
+  function initAudio() {
+    if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      master = AC.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(AC.destination);
+      var o1 = AC.createOscillator(), o2 = AC.createOscillator(), g = AC.createGain(), f = AC.createBiquadFilter();
+      o1.type = 'sawtooth'; o1.frequency.value = 110; o2.type = 'square'; o2.frequency.value = 221;
+      f.type = 'lowpass'; f.frequency.value = 900; g.gain.value = 0;
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+      o1.start(); o2.start();
+      hum = { g: g, o1: o1, o2: o2 };
+    } catch (e) { AC = null; }
+  }
+  function tone(freq, dur, type, vol, slide) {
+    if (!AC || muted) return;
+    var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t + dur);
+    g.gain.setValueAtTime(vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function noise(dur, vol, freq) {
+    if (!AC || muted) return;
+    var n = Math.floor(AC.sampleRate * dur), buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+    s.buffer = buf; f.type = 'lowpass'; f.frequency.value = freq || 1200; g.gain.value = vol || 0.3;
+    s.connect(f); f.connect(g); g.connect(master); s.start();
+  }
+  function setHum(on, hitting) {
+    if (!hum || !AC) return;
+    var t = AC.currentTime;
+    hum.g.gain.setTargetAtTime(on && !muted ? (hitting ? 0.17 : 0.1) : 0, t, 0.04);
+    hum.o1.frequency.setTargetAtTime(hitting ? 140 : 110, t, 0.05);
+    hum.o2.frequency.setTargetAtTime(hitting ? 283 : 221, t, 0.05);
+  }
+  function setMuted(m) {
+    muted = m;
+    try { localStorage.setItem('laserball-muted', m ? '1' : '0'); } catch (e) {}
+    if (master) master.gain.value = m ? 0 : 0.5;
+    if (m) setHum(false);
+    $('mute').textContent = m ? 'Sound off' : 'Sound on';
+  }
+
+  // ---------- shop data: skins, laser colors and coins, saved in this browser ----------
+  var SKINS = [
+    { id: 'cyan',   name: 'Cyan Core', price: 0,   rgb: [93, 242, 255] },
+    { id: 'ice',    name: 'Frost',     price: 90,  rgb: [214, 236, 255] },
+    { id: 'ember',  name: 'Ember',     price: 120, rgb: [255, 140, 50] },
+    { id: 'toxic',  name: 'Toxic',     price: 160, rgb: [155, 255, 58] },
+    { id: 'violet', name: 'Void',      price: 220, rgb: [165, 107, 255] },
+    { id: 'gold',   name: 'Gold Rush', price: 380, rgb: [255, 210, 63] },
+    { id: 'prism',  name: 'Prism',     price: 700, rainbow: true }
+  ];
+  var LASERS = [
+    { id: 'pink',   name: 'Hot Pink',    price: 0,   rgb: [255, 61, 129] },
+    { id: 'cyan',   name: 'Ion Blue',    price: 100, rgb: [46, 200, 255] },
+    { id: 'lime',   name: 'Acid Lime',   price: 150, rgb: [125, 255, 58] },
+    { id: 'violet', name: 'Ultraviolet', price: 220, rgb: [179, 107, 255] },
+    { id: 'solar',  name: 'Solar',       price: 300, rgb: [255, 122, 40] },
+    { id: 'prism',  name: 'Prism',       price: 700, rainbow: true }
+  ];
+  var save = { coins: 0, owned: { ball: ['cyan'], laser: ['pink'] }, equip: { ball: 'cyan', laser: 'pink' }, custom: [] };
+  // admin state: live modifiers, not saved between visits
+  var adm = { god: false, inf: false, freeze: false, dmg: 1, spd: 1, rock: 1, spawn: 1, used: false };
+  var adminOpen = false;
+  function isClean() {
+    function one(v) { return Math.abs(v - 1) < 1e-9; }
+    return !adm.used && !adm.god && !adm.inf && !adm.freeze && one(adm.dmg) && one(adm.spd) && one(adm.rock) && one(adm.spawn);
+  }
+  function addCustom(c) {
+    if (!c || (c.kind !== 'ball' && c.kind !== 'laser')) return null;
+    if (typeof c.id !== 'string' || !/^c_[a-z0-9]{1,12}$/.test(c.id)) return null;
+    var list = c.kind === 'ball' ? SKINS : LASERS;
+    if (list.some(function (it) { return it.id === c.id; })) return null;
+    var item = { id: c.id, name: String(c.name || 'Custom').slice(0, 16), price: Math.max(0, Math.min(99999, Math.floor(+c.price || 0))), custom: true };
+    if (c.rainbow) item.rainbow = true;
+    else if (Array.isArray(c.rgb) && c.rgb.length === 3) item.rgb = c.rgb.map(function (v) { return Math.max(0, Math.min(255, Math.floor(+v || 0))); });
+    else return null;
+    list.push(item);
+    save.custom.push({ kind: c.kind, id: item.id, name: item.name, price: item.price, rgb: item.rgb, rainbow: !!item.rainbow });
+    return item;
+  }
+  try {
+    var raw = localStorage.getItem('laserball-save');
+    var sv = raw ? JSON.parse(raw) : null;
+    if (sv && typeof sv === 'object') {
+      if (typeof sv.coins === 'number' && sv.coins > 0) save.coins = Math.floor(sv.coins);
+      if (Array.isArray(sv.custom)) sv.custom.slice(0, 30).forEach(function (c) { addCustom(c); });
+      ['ball', 'laser'].forEach(function (k) {
+        var list = k === 'ball' ? SKINS : LASERS;
+        if (sv.owned && Array.isArray(sv.owned[k])) {
+          sv.owned[k].forEach(function (id) {
+            if (save.owned[k].indexOf(id) < 0 && list.some(function (it) { return it.id === id; })) save.owned[k].push(id);
+          });
+        }
+        if (sv.equip && save.owned[k].indexOf(sv.equip[k]) >= 0) save.equip[k] = sv.equip[k];
+      });
+    }
+  } catch (e) {}
+  function persist() { try { localStorage.setItem('laserball-save', JSON.stringify(save)); } catch (e) {} }
+  function findItem(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return list[0]; }
+  function hsl2rgb(h) {
+    var l = 0.6, a = Math.min(l, 1 - l);
+    function f(n) { var k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }
+    return [f(0), f(8), f(4)];
+  }
+  function skinRGB(item, off) { return item.rainbow ? hsl2rgb((performance.now() / 8 + (off || 0)) % 360) : item.rgb; }
+  function ballRGB() { return skinRGB(findItem(SKINS, save.equip.ball)); }
+  function laserRGB() { return skinRGB(findItem(LASERS, save.equip.laser), 90); }
+  function rgbs(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+  function mix(c, t, to) { return [Math.round(c[0] + (to - c[0]) * t), Math.round(c[1] + (to - c[1]) * t), Math.round(c[2] + (to - c[2]) * t)]; }
+  function applyTheme() {
+    var b = findItem(SKINS, save.equip.ball), l = findItem(LASERS, save.equip.laser), st = document.documentElement.style;
+    st.setProperty('--ball', b.rainbow ? '#5df2ff' : rgbs(b.rgb));
+    st.setProperty('--beam', l.rainbow ? '#ff3d81' : rgbs(l.rgb));
+  }
+
+  var elScore = $('score'), elWave = $('wave'), elLives = $('lives'), elHeat = $('heat'), elFill = $('heatFill'), elHeatLabel = $('heatLabel');
+
+  function resize() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = cv.clientWidth; H = cv.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (p) { p.x = Math.min(Math.max(p.x, M + p.r), W - M - p.r); p.y = Math.min(Math.max(p.y, M + 44 + p.r), H - M - p.r); }
+  }
+  var TOP = 44; // space for HUD inside the arena
+  function bounds() { return { L: M, R: W - M, T: M + TOP, B: H - M }; }
+
+  var keys = {}, mouse = { x: 0, y: 0 }, down = false;
+  var p = null, enemies = [], parts = [], rings = [];
+  var MODES = {
+    easy:   { id: 'easy',   name: 'Easy',   lives: 1, dmg: 320, cool: 0, speed: 1 },
+    normal: { id: 'normal', name: 'Normal', lives: 2, dmg: 208, cool: 3, speed: 1 },
+    hard:   { id: 'hard',   name: 'Hard',   lives: 3, dmg: 130, cool: 3, speed: 0.9 }
+  };
+  var mode = MODES.normal, overheatT = 0;
+  var LAST = 50, WAVE_LEN = 15; // last wave is the final boss; normal waves last 15 seconds
+  var waveT = 0, boss = null, bossT = 0, bullets = [], won = false;
+  var score = 0, lives = 3, wave = 1, time = 0, spawnT = 0, heat = 0, over = false, running = false, shake = 0, best = 0;
+  function loadBest() { try { return parseInt(localStorage.getItem('laserball-best-' + mode.id) || '0', 10) || 0; } catch (e) { return 0; } }
+
+  function reset() {
+    p = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: 13, inv: 0 };
+    enemies = []; parts = []; rings = [];
+    score = 0; lives = mode.lives; wave = 1; time = 0; spawnT = 0.4; heat = 0; over = false; shake = 0;
+    overheated = false; overheatT = 0;
+    trail = []; flash = 0; tickT = 0; banner = { text: 'Wave 1', t: 0 };
+    waveT = 0; boss = null; bossT = 0; bullets = []; won = false; adm.used = false;
+    mouse.x = W / 2 + 120; mouse.y = H / 2;
+    drawHud();
+  }
+  var overheated = false;
+
+  function drawHud() {
+    elScore.textContent = score;
+    elWave.textContent = wave + '/' + LAST;
+    var h = '';
+    for (var i = 0; i < Math.max(mode.lives, lives); i++) h += '<i class="' + (i < lives ? '' : 'off') + '"></i>';
+    elLives.innerHTML = h;
+    elFill.style.width = Math.min(100, heat) + '%';
+    elHeat.className = 'heat' + (overheated ? ' over' : '');
+    elHeatLabel.textContent = overheated ? 'Cooling' : (mode.cool ? 'Laser' : 'Laser: no cooldown');
+  }
+
+  function spawn() {
+    var b = bounds(), side = Math.floor(Math.random() * 4);
+    var r = 14 + Math.random() * 20 + Math.min(wave, 6);
+    var x, y;
+    if (side === 0) { x = b.L - r; y = b.T + Math.random() * (b.B - b.T); }
+    else if (side === 1) { x = b.R + r; y = b.T + Math.random() * (b.B - b.T); }
+    else if (side === 2) { x = b.L + Math.random() * (b.R - b.L); y = b.T - r; }
+    else { x = b.L + Math.random() * (b.R - b.L); y = b.B + r; }
+    // keep spawns away from the player
+    if (Math.hypot(x - p.x, y - p.y) < 160) return;
+    addEnemy(x, y, r, 0, 0);
+  }
+  function addEnemy(x, y, r, vx, vy) {
+    enemies.push({ x: x, y: y, vx: vx, vy: vy, r: r, hp: r * 3, max: r * 3, hue: 20 + Math.random() * 40 | 0, hit: 0, rot: Math.random() * 6.28, spin: (Math.random() - .5) * 2, seed: Math.random() * 6.28 });
+  }
+
+  function burst(x, y, n, color, speed) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.283, s = (0.25 + Math.random()) * speed;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5 + Math.random() * 0.5, t: 0, c: color });
+    }
+  }
+
+  function segDist(px, py, ax, ay, bx, by) {
+    var dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    var t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    var cx = ax + dx * t, cy = ay + dy * t;
+    return Math.hypot(px - cx, py - cy);
+  }
+
+  function beamPath(maxBounces) {
+    var b = bounds(), x = p.x, y = p.y;
+    var dx = mouse.x - x, dy = mouse.y - y, l = Math.hypot(dx, dy);
+    if (l < 1) { dx = 1; dy = 0; } else { dx /= l; dy /= l; }
+    var segs = [], remaining = 1800;
+    for (var i = 0; i <= maxBounces; i++) {
+      var tx = Infinity, ty = Infinity;
+      if (dx > 0) tx = (b.R - x) / dx; else if (dx < 0) tx = (b.L - x) / dx;
+      if (dy > 0) ty = (b.B - y) / dy; else if (dy < 0) ty = (b.T - y) / dy;
+      var t = Math.min(tx, ty), tt = Math.min(t, remaining);
+      var nx = x + dx * tt, ny = y + dy * tt;
+      segs.push([x, y, nx, ny]);
+      remaining -= tt;
+      if (remaining <= 0) break;
+      if (tx < ty) dx = -dx; else dy = -dy;
+      x = nx; y = ny;
+    }
+    return segs;
+  }
+
+  function killEnemy(e) {
+    if (e.boss) {
+      score += Math.round(500 * e.tier);
+      burst(e.x, e.y, 90, '#e0a8ff', 430); burst(e.x, e.y, 40, '#ffffff', 300);
+      rings.push({ x: e.x, y: e.y, r: e.r, t: 0 }, { x: e.x, y: e.y, r: e.r * 1.6, t: 0 }, { x: e.x, y: e.y, r: e.r * 2.2, t: 0 });
+      shake = 24; flash = 0.6;
+      noise(1.2, 0.5, 2000); tone(120, 0.9, 'sawtooth', 0.3, 30);
+      bullets = []; boss = null;
+      if (wave >= LAST) won = true; else nextWave();
+      return;
+    }
+    score += Math.round(e.r);
+    burst(e.x, e.y, 16, 'hsl(' + e.hue + ',95%,62%)', 240);
+    rings.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+    shake = Math.min(shake + 4, 10);
+    noise(0.15 + e.r / 120, 0.3, 2400 - e.r * 30); tone(180 - e.r, 0.22, 'sine', 0.28, 40);
+    rings.push({ x: e.x, y: e.y, r: e.r * 0.5, t: 0 });
+    for (var d = 0; d < 6; d++) {
+      var da = Math.random() * 6.283, ds = 120 + Math.random() * 220;
+      parts.push({ x: e.x, y: e.y, vx: Math.cos(da) * ds, vy: Math.sin(da) * ds, life: 0.9, t: 0, c: '#ffd9a8' });
+    }
+    if (e.r > 22) {
+      for (var k = 0; k < 2; k++) {
+        var a = Math.random() * 6.283;
+        addEnemy(e.x, e.y, e.r * 0.62, Math.cos(a) * 120, Math.sin(a) * 120);
+      }
+    }
+  }
+
+  function startBoss() {
+    var b = bounds(), tier = wave / 10, r = 52 + tier * 5;
+    var x = (b.L + b.R) / 2, y = p.y > (b.T + b.B) / 2 ? b.T - r : b.B + r;
+    addEnemy(x, y, r, 0, 0);
+    var e = enemies[enemies.length - 1];
+    e.boss = true; e.tier = tier; e.hue = 290; e.spin = 0.4;
+    e.hp = e.max = mode.dmg * (7 + 2 * tier); // roughly 9 to 17 seconds of beam, whatever the mode
+    boss = e; bossT = 2;
+  }
+
+  function nextWave() {
+    wave++; waveT = 0;
+    var isBoss = wave % 10 === 0;
+    banner = { text: isBoss ? (wave >= LAST ? 'Final boss' : 'Boss wave ' + wave) : 'Wave ' + wave, t: 0 };
+    if (isBoss) {
+      startBoss();
+      tone(70, 1.2, 'sawtooth', 0.3, 35); noise(0.9, 0.35, 300);
+    } else {
+      tone(440, 0.12, 'square', 0.12);
+      setTimeout(function () { tone(660, 0.12, 'square', 0.12); }, 100);
+      setTimeout(function () { tone(880, 0.22, 'square', 0.12); }, 200);
+    }
+  }
+
+  function update(dt) {
+    var b = bounds();
+    time += dt;
+    if (!boss) { waveT += dt; if (waveT >= WAVE_LEN) nextWave(); }
+
+    // movement
+    var ax = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
+    var ay = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
+    if (ax && ay) { ax *= 0.7071; ay *= 0.7071; }
+    p.vx += ax * 2400 * mode.speed * adm.spd * dt; p.vy += ay * 2400 * mode.speed * adm.spd * dt;
+    var f = Math.exp(-5.2 * dt); p.vx *= f; p.vy *= f;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.x < b.L + p.r) { p.x = b.L + p.r; p.vx = Math.abs(p.vx) * 0.5; }
+    if (p.x > b.R - p.r) { p.x = b.R - p.r; p.vx = -Math.abs(p.vx) * 0.5; }
+    if (p.y < b.T + p.r) { p.y = b.T + p.r; p.vy = Math.abs(p.vy) * 0.5; }
+    if (p.y > b.B - p.r) { p.y = b.B - p.r; p.vy = -Math.abs(p.vy) * 0.5; }
+    if (p.inv > 0) p.inv -= dt;
+    trail.push({ x: p.x, y: p.y }); if (trail.length > 16) trail.shift();
+
+    // laser heat
+    var firing = down && !overheated;
+    if (adm.inf) { overheated = false; heat = 0; }
+    else if (mode.cool) {
+      if (overheated) {
+        overheatT -= dt;
+        heat = Math.max(0, 100 * overheatT / mode.cool);
+        if (overheatT <= 0) { overheated = false; heat = 0; tone(700, 0.12, 'sine', 0.15, 1100); }
+      } else {
+        if (firing) heat += 28 * dt; else heat = Math.max(0, heat - 60 * dt);
+        if (heat >= 100) {
+          heat = 100; overheated = true; overheatT = mode.cool;
+          noise(0.4, 0.25, 3000); tone(420, 0.5, 'sawtooth', 0.18, 60);
+          burst(p.x, p.y, 14, '#ffc247', 200);
+        }
+      }
+    }
+
+    // spawning
+    spawnT -= dt;
+    if (spawnT <= 0) {
+      spawn();
+      spawnT = Math.max(0.3, 1.5 - wave * 0.045) * (0.7 + Math.random() * 0.6) * (boss ? 2.5 : 1) / adm.spawn;
+    }
+
+    // beam damage
+    var hitAny = false;
+    if (firing) {
+      var segs = beamPath(3);
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i];
+        for (var s = 0; s < segs.length; s++) {
+          var g = segs[s];
+          if (segDist(e.x, e.y, g[0], g[1], g[2], g[3]) < e.r + 3) {
+            e.hp -= mode.dmg * adm.dmg * dt; e.hit = 0.08; hitAny = true;
+            if (Math.random() < 0.5) burst(e.x, e.y, 1, '#ffd2e3', 120);
+            break;
+          }
+        }
+      }
+    }
+
+    setHum(firing, hitAny);
+
+    // the beam shoots down boss bullets
+    if (firing && bullets.length) {
+      var bsegs = beamPath(3);
+      for (var bi = bullets.length - 1; bi >= 0; bi--) {
+        for (var bs = 0; bs < bsegs.length; bs++) {
+          var bg = bsegs[bs];
+          if (segDist(bullets[bi].x, bullets[bi].y, bg[0], bg[1], bg[2], bg[3]) < 10) {
+            burst(bullets[bi].x, bullets[bi].y, 5, '#d9b3ff', 140);
+            bullets.splice(bi, 1); break;
+          }
+        }
+      }
+    }
+
+    // boss attack: a ring of bullets
+    if (boss) {
+      bossT -= dt;
+      if (bossT <= 0) {
+        var n = 8 + boss.tier * 2, off = Math.random() * 6.283, bsp = 150 + boss.tier * 18;
+        for (var bn = 0; bn < n; bn++) {
+          var ba2 = off + bn / n * 6.283;
+          bullets.push({ x: boss.x, y: boss.y, vx: Math.cos(ba2) * bsp, vy: Math.sin(ba2) * bsp });
+        }
+        bossT = Math.max(1.4, 3.2 - boss.tier * 0.35);
+        noise(0.2, 0.2, 1800); tone(200, 0.25, 'square', 0.15, 90);
+      }
+    }
+    var bb = bounds();
+    for (var bj = bullets.length - 1; bj >= 0; bj--) {
+      var bu = bullets[bj];
+      bu.x += bu.vx * dt; bu.y += bu.vy * dt;
+      if (bu.x < bb.L - 20 || bu.x > bb.R + 20 || bu.y < bb.T - 20 || bu.y > bb.B + 20) { bullets.splice(bj, 1); continue; }
+      if (p.inv <= 0 && !adm.god && Math.hypot(bu.x - p.x, bu.y - p.y) < p.r + 6) {
+        bullets.splice(bj, 1);
+        lives--; p.inv = 1.6; shake = 12; flash = 1;
+        noise(0.5, 0.45, 700); tone(300, 0.4, 'sawtooth', 0.22, 60);
+        burst(p.x, p.y, 20, rgbs(ballRGB()), 280);
+        if (lives <= 0) { endGame(); return; }
+      }
+    }
+    if (hitAny) {
+      tickT -= dt;
+      if (tickT <= 0) { tone(600 + Math.random() * 500, 0.05, 'square', 0.04); tickT = 0.07; }
+    }
+
+    // enemies
+    for (var j = enemies.length - 1; j >= 0; j--) {
+      var en = enemies[j];
+      if (en.hp <= 0) { killEnemy(en); enemies.splice(j, 1); continue; }
+      var dx = p.x - en.x, dy = p.y - en.y, d = Math.hypot(dx, dy) || 1;
+      var sp = en.boss ? 40 + en.tier * 8 : (46 + Math.min(wave, 40) * 3.5) * (28 / en.r + 0.4);
+      sp *= adm.freeze ? 0 : adm.rock;
+      en.vx += (dx / d * sp - en.vx) * Math.min(1, 1.6 * dt);
+      en.vy += (dy / d * sp - en.vy) * Math.min(1, 1.6 * dt);
+      en.x += en.vx * dt; en.y += en.vy * dt;
+      en.rot += en.spin * dt;
+      if (en.hit > 0) en.hit -= dt;
+      if (d < en.r + p.r && p.inv <= 0 && !adm.god) {
+        lives--; p.inv = 1.6; shake = 12; flash = 1;
+        noise(0.5, 0.45, 700); tone(300, 0.4, 'sawtooth', 0.22, 60);
+        burst(p.x, p.y, 20, rgbs(ballRGB()), 280);
+        p.vx -= dx / d * 520; p.vy -= dy / d * 520;
+        en.vx += dx / d * 260; en.vy += dy / d * 260;
+        if (lives <= 0) { endGame(); return; }
+      }
+    }
+
+    // soft push between rocks so they do not stack
+    for (var m = 0; m < enemies.length; m++) for (var n = m + 1; n < enemies.length; n++) {
+      var a = enemies[m], c = enemies[n], ddx = c.x - a.x, ddy = c.y - a.y, dd = Math.hypot(ddx, ddy) || 1, min = a.r + c.r;
+      if (dd < min) { var push = (min - dd) / 2; a.x -= ddx / dd * push; a.y -= ddy / dd * push; c.x += ddx / dd * push; c.y += ddy / dd * push; }
+    }
+
+    // particles
+    for (var q = parts.length - 1; q >= 0; q--) {
+      var pt = parts[q]; pt.t += dt;
+      if (pt.t > pt.life) { parts.splice(q, 1); continue; }
+      pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vx *= 0.96; pt.vy *= 0.96;
+    }
+    for (var r = rings.length - 1; r >= 0; r--) { rings[r].t += dt; if (rings[r].t > 0.35) rings.splice(r, 1); }
+    shake = Math.max(0, shake - 30 * dt);
+    flash = Math.max(0, flash - 3 * dt);
+    if (banner) { banner.t += dt; if (banner.t > 1.6) banner = null; }
+    drawHud();
+    if (won) endGame(true);
+  }
+
+  function render() {
+    var b = bounds();
+    var LR = laserRGB(), BR = ballRGB();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#0a0d18'; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
+
+    // arena floor + grid
+    ctx.fillStyle = '#0e1324'; ctx.fillRect(b.L, b.T, b.R - b.L, b.B - b.T);
+    ctx.strokeStyle = '#19203a'; ctx.lineWidth = 1; ctx.beginPath();
+    for (var gx = b.L + 40; gx < b.R; gx += 40) { ctx.moveTo(gx + .5, b.T); ctx.lineTo(gx + .5, b.B); }
+    for (var gy = b.T + 40; gy < b.B; gy += 40) { ctx.moveTo(b.L, gy + .5); ctx.lineTo(b.R, gy + .5); }
+    ctx.stroke();
+    ctx.save();
+    ctx.shadowColor = rgbs(LR); ctx.shadowBlur = 14; ctx.strokeStyle = rgbs(LR); ctx.lineWidth = 2;
+    ctx.strokeRect(b.L, b.T, b.R - b.L, b.B - b.T);
+    ctx.restore();
+
+    if (p) {
+      // particles + rings
+      for (var q = 0; q < parts.length; q++) {
+        var pt = parts[q], k = 1 - pt.t / pt.life;
+        ctx.globalAlpha = k; ctx.fillStyle = pt.c;
+        ctx.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+      for (var r = 0; r < rings.length; r++) {
+        var rg = rings[r], t = rg.t / 0.35;
+        ctx.globalAlpha = 1 - t; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(rg.x, rg.y, rg.r + t * 30, 0, 6.283); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // enemies
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i], hpk = Math.max(0, e.hp / e.max);
+        var col = 'hsl(' + e.hue + ',95%,60%)';
+        ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.rot);
+        ctx.beginPath();
+        var pts = e.boss ? 14 : 9;
+        for (var v = 0; v <= pts; v++) {
+          var ang = v / pts * 6.283, wob = 1 + 0.12 * Math.sin(v * 2.3 + e.seed);
+          var px = Math.cos(ang) * e.r * wob, py = Math.sin(ang) * e.r * wob;
+          if (v === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = e.hit > 0 ? '#ffffff' : 'hsl(' + e.hue + ',60%,' + (14 + 22 * hpk) + '%)';
+        ctx.shadowColor = col; ctx.shadowBlur = 12;
+        ctx.fill();
+        ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.stroke();
+        if (e.boss) {
+          ctx.beginPath(); ctx.arc(0, 0, e.r * 0.45 * (0.9 + 0.1 * Math.sin(performance.now() / 150)), 0, 6.283);
+          ctx.globalAlpha = 0.5; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+      }
+
+      // boss bullets
+      for (var bi2 = 0; bi2 < bullets.length; bi2++) {
+        ctx.save(); ctx.shadowColor = '#b36bff'; ctx.shadowBlur = 14; ctx.fillStyle = '#e0c2ff';
+        ctx.beginPath(); ctx.arc(bullets[bi2].x, bullets[bi2].y, 6, 0, 6.283); ctx.fill(); ctx.restore();
+      }
+
+      // laser
+      var firing = down && !overheated;
+      if (firing) {
+        var segs = beamPath(3);
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        var wob = 0.85 + Math.random() * 0.3;
+        [[14 * wob, rgba(LR, 0.18)], [7 * wob, rgba(LR, 0.55)], [2.6, '#ffffff']].forEach(function (L) {
+          ctx.strokeStyle = L[1]; ctx.lineWidth = L[0];
+          ctx.shadowColor = rgbs(LR); ctx.shadowBlur = L[0] > 3 ? 18 : 0;
+          ctx.beginPath(); ctx.moveTo(segs[0][0], segs[0][1]);
+          for (var s = 0; s < segs.length; s++) ctx.lineTo(segs[s][2], segs[s][3]);
+          ctx.stroke();
+        });
+        ctx.restore();
+        // wall sparks
+        for (var s2 = 0; s2 < segs.length - 1; s2++) if (Math.random() < 0.6) burst(segs[s2][2], segs[s2][3], 1, rgbs(mix(LR, 0.5, 255)), 160);
+      } else {
+        var aim = beamPath(0)[0];
+        ctx.save(); ctx.setLineDash([3, 9]); ctx.strokeStyle = overheated ? 'rgba(255,194,71,.45)' : rgba(LR, 0.45); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(aim[0], aim[1]); ctx.lineTo(aim[2], aim[3]); ctx.stroke(); ctx.restore();
+      }
+
+      // ball trail
+      for (var tr = 0; tr < trail.length; tr++) {
+        var tk = (tr + 1) / trail.length;
+        ctx.globalAlpha = tk * 0.35; ctx.fillStyle = rgbs(BR);
+        ctx.beginPath(); ctx.arc(trail[tr].x, trail[tr].y, p.r * tk * 0.9, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      // muzzle glow while firing
+      if (down && !overheated) {
+        var mg = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, 46 + Math.random() * 8);
+        mg.addColorStop(0, 'rgba(255,255,255,.75)'); mg.addColorStop(0.3, rgba(LR, 0.4)); mg.addColorStop(1, rgba(LR, 0));
+        ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(p.x, p.y, 56, 0, 6.283); ctx.fill();
+      }
+      // ball
+      var blink = p.inv > 0 && Math.floor(p.inv * 14) % 2 === 0;
+      if (!blink) {
+        ctx.save();
+        ctx.shadowColor = rgbs(BR); ctx.shadowBlur = 22;
+        var gr = ctx.createRadialGradient(p.x - 4, p.y - 4, 2, p.x, p.y, p.r);
+        gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.35, rgbs(BR)); gr.addColorStop(1, rgbs(mix(BR, 0.62, 0)));
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+        ctx.restore();
+      }
+      // crosshair
+      ctx.strokeStyle = overheated ? '#ffc247' : rgbs(LR); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 9, 0, 6.283);
+      ctx.moveTo(mouse.x - 15, mouse.y); ctx.lineTo(mouse.x - 5, mouse.y);
+      ctx.moveTo(mouse.x + 5, mouse.y); ctx.lineTo(mouse.x + 15, mouse.y);
+      ctx.moveTo(mouse.x, mouse.y - 15); ctx.lineTo(mouse.x, mouse.y - 5);
+      ctx.moveTo(mouse.x, mouse.y + 5); ctx.lineTo(mouse.x, mouse.y + 15);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // screen effects (not shaken)
+    if (p && running && lives === 1 && mode.lives > 1) {
+      var pulse = 0.25 + 0.15 * Math.sin(performance.now() / 180);
+      var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+      vg.addColorStop(0, 'rgba(255,0,60,0)'); vg.addColorStop(1, 'rgba(255,0,60,' + pulse + ')');
+      ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    }
+    if (boss && running) {
+      var hw = Math.min(W - 32, 520), hx = (W - hw) / 2, hy = b.T + 26;
+      ctx.save();
+      ctx.fillStyle = '#e0c2ff'; ctx.font = '700 12px "Chakra Petch", sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(wave >= LAST ? 'FINAL BOSS' : 'BOSS', W / 2, hy - 6);
+      ctx.fillStyle = 'rgba(25,32,58,.9)'; ctx.fillRect(hx, hy, hw, 10);
+      ctx.shadowColor = '#b36bff'; ctx.shadowBlur = 10; ctx.fillStyle = '#b36bff';
+      ctx.fillRect(hx, hy, hw * Math.max(0, boss.hp / boss.max), 10);
+      ctx.restore();
+    }
+    if (flash > 0) { ctx.fillStyle = 'rgba(255,70,90,' + (flash * 0.35) + ')'; ctx.fillRect(0, 0, W, H); }
+    if (banner && running) {
+      var bk = banner.t / 1.6, ba = bk < 0.2 ? bk / 0.2 : (bk > 0.7 ? (1 - bk) / 0.3 : 1);
+      ctx.save(); ctx.globalAlpha = Math.max(0, ba); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '700 ' + Math.round(Math.min(W * 0.09, 72)) + 'px "Chakra Petch", sans-serif';
+      ctx.fillStyle = '#fff'; ctx.shadowColor = rgbs(LR); ctx.shadowBlur = 30;
+      ctx.fillText(banner.text.toUpperCase(), W / 2, H * 0.38 - (1 - Math.min(1, bk * 5)) * 20);
+      ctx.restore();
+    }
+  }
+
+  function endGame(win) {
+    over = true; running = false; down = false;
+    setHum(false);
+    $('overTitle').innerHTML = win ? 'You <span>win</span>' : 'Ball <span>down</span>';
+    if (win) {
+      [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { tone(f, 0.35, 'square', 0.14); }, i * 140); });
+    } else {
+      noise(0.8, 0.4, 500);
+      tone(330, 0.25, 'sawtooth', 0.2, 300);
+      setTimeout(function () { tone(247, 0.25, 'sawtooth', 0.2, 230); }, 220);
+      setTimeout(function () { tone(165, 0.6, 'sawtooth', 0.22, 60); }, 440);
+    }
+    var clean = isClean();
+    var isBest = clean && score > best && score > 0;
+    if (clean && score > best) { best = score; try { localStorage.setItem('laserball-best-' + mode.id, String(best)); } catch (e) {} }
+    $('final').textContent = mode.name + '  ·  Score ' + score + '  ·  Wave ' + wave;
+    $('bestLine').textContent = !clean ? 'Admin run: it does not count for best score.' : isBest ? 'New best score on ' + mode.name + '.' : 'Best score on ' + mode.name + ': ' + best + '.';
+    var earned = clean ? Math.floor(score / 10) + (wave - 1) * 2 + (win ? 300 : 0) : 0;
+    save.coins += earned; persist(); coinsText();
+    $('earned').textContent = clean ? '+' + earned + ' coins' : 'No coins on admin runs';
+    show('over');
+    drawHud();
+  }
+
+  // ---------- screens and shop UI ----------
+  function show(which) { ['start', 'shop', 'over'].forEach(function (id) { $(id).hidden = id !== which; }); }
+  function coinsText() { $('coinsMenu').textContent = save.coins; $('coinsShop').textContent = save.coins; }
+  var shopTab = 'ball', shopReturn = 'start', shopRAF = 0, previews = [];
+
+  function drawPreview(pc) {
+    var c = pc.cv.getContext('2d'), w = pc.cv.width, h = pc.cv.height, isBall = pc.kind === 'ball';
+    c.clearRect(0, 0, w, h);
+    c.fillStyle = '#0e1324'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#19203a'; c.lineWidth = 1; c.beginPath();
+    for (var x = 20; x < w; x += 20) { c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, h); }
+    for (var y = 16; y < h; y += 20) { c.moveTo(0, y + 0.5); c.lineTo(w, y + 0.5); }
+    c.stroke();
+    var brgb = isBall ? skinRGB(pc.it) : ballRGB();
+    var lrgb = isBall ? laserRGB() : skinRGB(pc.it, 90);
+    var bx = isBall ? w / 2 : 36, by = h / 2, r = 18;
+    if (isBall) {
+      for (var t = 1; t <= 6; t++) {
+        c.globalAlpha = (7 - t) / 7 * 0.35; c.fillStyle = rgbs(brgb);
+        c.beginPath(); c.arc(bx - t * 11, by, r * (1 - t * 0.1), 0, 6.283); c.fill();
+      }
+      c.globalAlpha = 1;
+    } else {
+      c.save(); c.lineCap = 'round';
+      [[11, rgba(lrgb, 0.18)], [6, rgba(lrgb, 0.55)], [2.4, '#ffffff']].forEach(function (L) {
+        c.strokeStyle = L[1]; c.lineWidth = L[0]; c.shadowColor = rgbs(lrgb); c.shadowBlur = L[0] > 3 ? 14 : 0;
+        c.beginPath(); c.moveTo(bx, by); c.lineTo(w - 8, by); c.stroke();
+      });
+      c.restore();
+    }
+    c.save();
+    c.shadowColor = rgbs(brgb); c.shadowBlur = 18;
+    var g = c.createRadialGradient(bx - 4, by - 4, 2, bx, by, r);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, rgbs(brgb)); g.addColorStop(1, rgbs(mix(brgb, 0.62, 0)));
+    c.fillStyle = g; c.beginPath(); c.arc(bx, by, r, 0, 6.283); c.fill();
+    c.restore();
+  }
+
+  function renderShop() {
+    var kind = shopTab, list = kind === 'ball' ? SKINS : LASERS, grid = $('shopGrid');
+    grid.innerHTML = ''; previews = [];
+    $('tabBall').className = 'tab' + (kind === 'ball' ? ' on' : '');
+    $('tabLaser').className = 'tab' + (kind === 'laser' ? ' on' : '');
+    list.forEach(function (it) {
+      var owned = save.owned[kind].indexOf(it.id) >= 0, eq = save.equip[kind] === it.id;
+      var card = document.createElement('div'); card.className = 'item' + (eq ? ' eq' : '');
+      var cvs = document.createElement('canvas'); cvs.width = 160; cvs.height = 96;
+      var nm = document.createElement('div'); nm.className = 'iname'; nm.textContent = it.name + (it.custom ? ' ★' : '');
+      var btn = document.createElement('button'); btn.type = 'button';
+      if (eq) { btn.textContent = 'Equipped'; btn.className = 'ibtn on'; btn.disabled = true; }
+      else if (owned) { btn.textContent = 'Equip'; btn.className = 'ibtn'; }
+      else { btn.textContent = 'Buy · ' + it.price; btn.className = 'ibtn buy' + (save.coins < it.price ? ' poor' : ''); }
+      btn.addEventListener('click', function () {
+        initAudio();
+        if (!owned) {
+          if (save.coins < it.price) {
+            $('shopMsg').textContent = 'Not enough coins. You need ' + (it.price - save.coins) + ' more.';
+            tone(160, 0.2, 'sawtooth', 0.12, 110); return;
+          }
+          save.coins -= it.price; save.owned[kind].push(it.id);
+          tone(660, 0.1, 'square', 0.12); setTimeout(function () { tone(990, 0.16, 'square', 0.12); }, 90);
+          $('shopMsg').textContent = it.name + ' bought and equipped.';
+        } else {
+          tone(520, 0.08, 'square', 0.1);
+          $('shopMsg').textContent = it.name + ' equipped.';
+        }
+        save.equip[kind] = it.id; persist(); applyTheme(); renderShop();
+      });
+      card.appendChild(cvs); card.appendChild(nm); card.appendChild(btn); grid.appendChild(card);
+      previews.push({ cv: cvs, it: it, kind: kind });
+    });
+    coinsText();
+    previews.forEach(drawPreview);
+  }
+
+  function shopLoop() {
+    var sh = !$('shop').hidden, ad = !$('admin').hidden && !$('at-cre').hidden;
+    if (!sh && !ad) { shopRAF = 0; return; }
+    if (sh) previews.forEach(drawPreview);
+    if (ad && crPrev.cv) drawPreview(crPrev);
+    shopRAF = requestAnimationFrame(shopLoop);
+  }
+  function openShop(from) {
+    shopReturn = from; $('shopMsg').textContent = '';
+    show('shop'); renderShop();
+    if (!shopRAF) shopRAF = requestAnimationFrame(shopLoop);
+  }
+
+  // ---------- admin panel: commands, creator, tuning ----------
+  var cmdHist = [], cmdHistI = 0, adminWelcomed = false, crKind = 'ball';
+  var crPrev = { cv: null, it: { rgb: [255, 138, 61] }, kind: 'ball' };
+
+  function alog(msg, cls) {
+    var c = $('console'), d = document.createElement('div');
+    d.className = cls || ''; d.textContent = msg; c.appendChild(d);
+    while (c.children.length > 200) c.removeChild(c.firstChild);
+    c.scrollTop = c.scrollHeight;
+  }
+  function num(s) { var v = parseFloat(s); return isFinite(v) ? v : null; }
+  function flag(arg, cur) {
+    if (arg === 'on' || arg === '1' || arg === 'true') return true;
+    if (arg === 'off' || arg === '0' || arg === 'false') return false;
+    return !cur;
+  }
+  function needRun() { if (!running) { alog('Start a game first.', 'err'); return true; } return false; }
+  function jumpWave(n) {
+    n = Math.max(1, Math.min(LAST, Math.round(n)));
+    boss = null; enemies = enemies.filter(function (e) { return !e.boss; }); bullets = [];
+    wave = n - 1; nextWave(); adm.used = true;
+    alog('Jumped to wave ' + wave + '.', 'ok');
+  }
+  function setMod(key, a, lo, hi, label) {
+    var v = num(a[0]);
+    if (v === null) { alog('Usage: ' + label + ' <number>', 'err'); return; }
+    adm[key] = Math.max(lo, Math.min(hi, v));
+    alog(label + ' is now ×' + adm[key], 'ok');
+  }
+  function grant(kind, q) {
+    var list = kind === 'ball' ? SKINS : LASERS, it = null;
+    q = (q || '').toLowerCase().replace(/\s+/g, '');
+    list.forEach(function (x) { if (x.id.toLowerCase() === q || x.name.toLowerCase().replace(/\s+/g, '') === q) it = x; });
+    if (!it) { alog('No ' + kind + ' called "' + q + '". Try list.', 'err'); return; }
+    if (save.owned[kind].indexOf(it.id) < 0) save.owned[kind].push(it.id);
+    save.equip[kind] = it.id; persist(); applyTheme(); if (!$('shop').hidden) renderShop();
+    alog('Equipped ' + it.name + '.', 'ok');
+  }
+  function wipeSave() {
+    [SKINS, LASERS].forEach(function (list) { for (var i = list.length - 1; i >= 0; i--) if (list[i].custom) list.splice(i, 1); });
+    save.coins = 0; save.owned = { ball: ['cyan'], laser: ['pink'] }; save.equip = { ball: 'cyan', laser: 'pink' }; save.custom = [];
+    persist(); applyTheme(); coinsText(); renderCustomList(); if (!$('shop').hidden) renderShop();
+  }
+
+  var CMDS = {
+    help: function () {
+      [
+        'coins <n>          add coins (negative removes)',
+        'setcoins <n>       set your coins',
+        'god [on|off]       take no damage',
+        'infinite [on|off]  laser never overheats',
+        'freeze [on|off]    rocks stop moving',
+        'heal               refill your lives',
+        'lives <1-9>        set your lives',
+        'wave <n|+n|-n>     jump to a wave (1-50)',
+        'boss               jump to the next boss wave',
+        'kill               destroy every rock',
+        'spawn <n>          spawn n rocks',
+        'dmg <x>            laser damage multiplier',
+        'speed <x>          your move speed multiplier',
+        'rocks <x>          rock speed multiplier',
+        'rate <x>           rock spawn rate multiplier',
+        'normal             reset all multipliers and toggles',
+        'skin <name>        equip a ball skin (unlocks it)',
+        'laser <name>       equip a laser color (unlocks it)',
+        'unlockall          own every skin and laser color',
+        'list               show skin and laser names',
+        'resetsave confirm  wipe coins, skins and custom items',
+        'clear              clear this console'
+      ].forEach(function (l) { alog(l); });
+    },
+    coins: function (a) {
+      var n = num(a[0]);
+      if (n === null) { alog('Usage: coins <amount>', 'err'); return; }
+      save.coins = Math.max(0, Math.floor(save.coins + n)); persist(); coinsText(); if (!$('shop').hidden) renderShop();
+      alog('Coins: ' + save.coins, 'ok');
+    },
+    setcoins: function (a) {
+      var n = num(a[0]);
+      if (n === null || n < 0) { alert_usage('setcoins <amount>'); return; }
+      save.coins = Math.floor(n); persist(); coinsText(); if (!$('shop').hidden) renderShop();
+      alog('Coins: ' + save.coins, 'ok');
+    },
+    god: function (a) { adm.god = flag(a[0], adm.god); alog('God mode ' + (adm.god ? 'on' : 'off'), 'ok'); },
+    infinite: function (a) { adm.inf = flag(a[0], adm.inf); alog('Infinite laser ' + (adm.inf ? 'on' : 'off'), 'ok'); },
+    freeze: function (a) { adm.freeze = flag(a[0], adm.freeze); alog('Rocks ' + (adm.freeze ? 'frozen' : 'moving'), 'ok'); },
+    heal: function () {
+      if (needRun()) return;
+      lives = Math.max(mode.lives, lives); p.inv = 1; adm.used = true; drawHud(); alog('Lives: ' + lives, 'ok');
+    },
+    lives: function (a) {
+      if (needRun()) return;
+      var n = num(a[0]);
+      if (n === null) { alog('Usage: lives <1-9>', 'err'); return; }
+      lives = Math.max(1, Math.min(9, Math.round(n))); adm.used = true; drawHud(); alog('Lives: ' + lives, 'ok');
+    },
+    wave: function (a) {
+      if (needRun()) return;
+      var t = a[0] || '', v = num(t);
+      if (v === null) { alog('Usage: wave <n>, wave +1 or wave -1', 'err'); return; }
+      jumpWave(t.charAt(0) === '+' || t.charAt(0) === '-' ? wave + v : v);
+    },
+    boss: function () {
+      if (needRun()) return;
+      jumpWave(Math.min(LAST, (Math.floor(wave / 10) + 1) * 10));
+    },
+    kill: function () {
+      if (needRun()) return;
+      var n = enemies.filter(function (e) { return !e.boss; }).length;
+      enemies.slice().forEach(function (e) { if (!e.boss) killEnemy(e); });
+      enemies = enemies.filter(function (e) { return e.boss; });
+      adm.used = true; alog('Destroyed ' + n + ' rocks.', 'ok');
+    },
+    spawn: function (a) {
+      if (needRun()) return;
+      var n = Math.max(1, Math.min(50, Math.round(num(a[0]) || 1))), before = enemies.length, tries = 0;
+      while (enemies.length - before < n && tries++ < n * 10) spawn();
+      adm.used = true; alog('Spawned ' + (enemies.length - before) + ' rocks.', 'ok');
+    },
+    dmg: function (a) { setMod('dmg', a, 0.1, 20, 'Laser damage'); },
+    speed: function (a) { setMod('spd', a, 0.2, 4, 'Move speed'); },
+    rocks: function (a) { setMod('rock', a, 0, 4, 'Rock speed'); },
+    rate: function (a) { setMod('spawn', a, 0.1, 5, 'Spawn rate'); },
+    normal: function () {
+      adm.god = adm.inf = adm.freeze = false; adm.dmg = adm.spd = adm.rock = adm.spawn = 1;
+      alog('Multipliers and toggles reset.', 'ok');
+    },
+    skin: function (a) { grant('ball', a.join(' ')); },
+    laser: function (a) { grant('laser', a.join(' ')); },
+    unlockall: function () {
+      save.owned.ball = SKINS.map(function (x) { return x.id; });
+      save.owned.laser = LASERS.map(function (x) { return x.id; });
+      persist(); if (!$('shop').hidden) renderShop();
+      alog('Everything unlocked.', 'ok');
+    },
+    list: function () {
+      alog('Ball skins: ' + SKINS.map(function (x) { return x.name; }).join(', '));
+      alog('Laser colors: ' + LASERS.map(function (x) { return x.name; }).join(', '));
+    },
+    resetsave: function (a) {
+      if (a[0] !== 'confirm') { alog('This wipes coins, skins and custom items. Run "resetsave confirm" to do it.', 'err'); return; }
+      wipeSave(); alog('Save wiped.', 'ok');
+    },
+    clear: function () { $('console').innerHTML = ''; }
+  };
+  CMDS.cls = CMDS.clear;
+  function alert_usage(s) { alog('Usage: ' + s, 'err'); }
+
+  function runCmd(line) {
+    line = line.trim(); if (!line) return;
+    alog('> ' + line, 'echo');
+    var a = line.split(/\s+/), name = a[0].toLowerCase(), fn = CMDS.hasOwnProperty(name) ? CMDS[name] : null;
+    if (!fn) { alog('Unknown command "' + name + '". Type help.', 'err'); return; }
+    try { fn(a.slice(1)); } catch (e) { alog('Error: ' + e.message, 'err'); }
+    drawHud(); refreshAdmin();
+  }
+
+  function refreshAdmin() {
+    $('tgGod').checked = adm.god; $('tgInf').checked = adm.inf; $('tgFreeze').checked = adm.freeze;
+    [['tgDmg', 'oDmg', 'dmg'], ['tgSpd', 'oSpd', 'spd'], ['tgRock', 'oRock', 'rock'], ['tgRate', 'oRate', 'spawn']].forEach(function (r) {
+      $(r[0]).value = adm[r[2]]; $(r[1]).textContent = '×' + adm[r[2]];
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#quick [data-state]'), function (b) {
+      b.className = 'qb' + (adm[b.getAttribute('data-state')] ? ' on' : '');
+    });
+    $('admTag').textContent = isClean() ? '' : 'Admin changes are active. Runs now earn no coins and no best score.';
+  }
+
+  function toggleAdmin() {
+    adminOpen = !adminOpen; $('admin').hidden = !adminOpen; keys = {}; down = false;
+    if (adminOpen) {
+      refreshAdmin(); renderCustomList(); updateCrPreview();
+      if (!adminWelcomed) { adminWelcomed = true; alog('Admin panel ready. Type help for commands. Open or close it with the ` key.', 'ok'); }
+      if (!shopRAF) shopRAF = requestAnimationFrame(shopLoop);
+      setTimeout(function () { if (!$('at-cmd').hidden) $('cmdIn').focus(); }, 0);
+    } else if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+
+  // creator
+  function hexToRgb(h) {
+    var m = /^#([0-9a-f]{6})$/i.exec(h || ''); if (!m) return [255, 255, 255];
+    var n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function updateCrPreview() {
+    crPrev.cv = $('crCanvas'); crPrev.kind = crKind;
+    var rb = $('crRainbow').checked;
+    crPrev.it = rb ? { rainbow: true } : { rgb: hexToRgb($('crColor').value) };
+    $('crColor').disabled = rb;
+    drawPreview(crPrev);
+  }
+  function renderCustomList() {
+    var box = $('crList'); box.innerHTML = '';
+    if (!save.custom.length) {
+      var e = document.createElement('div'); e.className = 'msg'; e.style.color = 'var(--muted)'; e.textContent = 'Nothing yet. Create a skin or laser color and it shows up here and in the shop.';
+      box.appendChild(e); return;
+    }
+    save.custom.forEach(function (c) {
+      var row = document.createElement('div'); row.className = 'crrow';
+      var sw = document.createElement('i'); sw.className = 'sw';
+      sw.style.background = c.rainbow ? 'conic-gradient(#ff4d4d, #ffd24d, #4dff88, #4dc3ff, #c04dff, #ff4d4d)' : rgbs(c.rgb);
+      var nm = document.createElement('div'); nm.className = 'nm';
+      var owned = save.owned[c.kind].indexOf(c.id) >= 0;
+      nm.textContent = c.name;
+      var sm = document.createElement('small'); sm.textContent = (c.kind === 'ball' ? 'Ball skin' : 'Laser color') + (owned ? ' · owned' : ' · for sale, ' + c.price);
+      nm.appendChild(sm);
+      row.appendChild(sw); row.appendChild(nm);
+      if (owned && save.equip[c.kind] !== c.id) {
+        var eq = document.createElement('button'); eq.type = 'button'; eq.textContent = 'Equip';
+        eq.addEventListener('click', function () { save.equip[c.kind] = c.id; persist(); applyTheme(); renderCustomList(); });
+        row.appendChild(eq);
+      }
+      var del = document.createElement('button'); del.type = 'button'; del.textContent = 'Delete';
+      del.addEventListener('click', function () {
+        var list = c.kind === 'ball' ? SKINS : LASERS;
+        for (var i = list.length - 1; i >= 0; i--) if (list[i].id === c.id) list.splice(i, 1);
+        save.custom = save.custom.filter(function (x) { return x.id !== c.id; });
+        save.owned[c.kind] = save.owned[c.kind].filter(function (x) { return x !== c.id; });
+        if (save.equip[c.kind] === c.id) save.equip[c.kind] = list[0].id;
+        persist(); applyTheme(); renderCustomList(); if (!$('shop').hidden) renderShop();
+      });
+      row.appendChild(del); box.appendChild(row);
+    });
+  }
+
+  function begin() {
+    show(null);
+    best = loadBest();
+    initAudio();
+    reset(); running = true;
+    tone(300, 0.15, 'square', 0.12, 600);
+    setTimeout(function () { tone(600, 0.2, 'square', 0.12, 900); }, 120);
+  }
+
+  var last = 0;
+  function frame(now) {
+    var dt = Math.min(0.033, (now - last) / 1000 || 0.016); last = now;
+    if (running && !adminOpen) update(dt); else setHum(false);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('keydown', function (e) {
+    var tg = e.target && e.target.tagName;
+    if (e.key === '`' || e.key === 'F2') { e.preventDefault(); toggleAdmin(); return; }
+    if (adminOpen || tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') { if (e.key === 'Escape' && adminOpen) toggleAdmin(); return; }
+    var k = e.key.toLowerCase();
+    keys[k] = true;
+    if (k === 'm') { initAudio(); setMuted(!muted); }
+    if (k === 'escape' && !$('shop').hidden) $('shopBack').click();
+    if (k.indexOf('arrow') === 0 || k === ' ') e.preventDefault();
+    if ((k === ' ' || k === 'enter') && !running && !$('over').hidden && document.activeElement && document.activeElement.tagName !== 'BUTTON') begin();
+  });
+  window.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('blur', function () { keys = {}; down = false; });
+  cv.addEventListener('pointermove', function (e) { var r = cv.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; });
+  cv.addEventListener('pointerdown', function (e) { var r = cv.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; down = true; });
+  window.addEventListener('pointerup', function () { down = false; });
+  window.addEventListener('pointercancel', function () { down = false; });
+  cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  window.addEventListener('resize', resize);
+  Array.prototype.forEach.call(document.querySelectorAll('button.mode'), function (btn) {
+    btn.addEventListener('click', function () { mode = MODES[btn.getAttribute('data-mode')]; begin(); });
+  });
+  $('mute').addEventListener('click', function () { initAudio(); setMuted(!muted); });
+  setMuted(muted);
+  $('again').addEventListener('click', begin);
+  $('change').addEventListener('click', function () {
+    show('start'); $('menuView').hidden = true; $('modeView').hidden = false; reset();
+  });
+  $('play').addEventListener('click', function () { $('menuView').hidden = true; $('modeView').hidden = false; });
+  $('modeBack').addEventListener('click', function () { $('modeView').hidden = true; $('menuView').hidden = false; });
+  $('openShop').addEventListener('click', function () { openShop('start'); });
+  $('overShop').addEventListener('click', function () { openShop('over'); });
+  $('shopBack').addEventListener('click', function () { show(shopReturn); });
+  $('tabBall').addEventListener('click', function () { shopTab = 'ball'; $('shopMsg').textContent = ''; renderShop(); });
+  $('tabLaser').addEventListener('click', function () { shopTab = 'laser'; $('shopMsg').textContent = ''; renderShop(); });
+  applyTheme(); coinsText();
+
+  // admin wiring
+  $('adminBtn').addEventListener('click', toggleAdmin);
+  $('admClose').addEventListener('click', toggleAdmin);
+  $('cmdForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = $('cmdIn').value; if (v.trim()) { cmdHist.push(v); cmdHistI = cmdHist.length; }
+    $('cmdIn').value = ''; runCmd(v);
+  });
+  $('cmdIn').addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowUp' && cmdHist.length) { e.preventDefault(); cmdHistI = Math.max(0, cmdHistI - 1); this.value = cmdHist[cmdHistI]; }
+    if (e.key === 'ArrowDown' && cmdHist.length) { e.preventDefault(); cmdHistI = Math.min(cmdHist.length, cmdHistI + 1); this.value = cmdHist[cmdHistI] || ''; }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('#quick [data-cmd]'), function (b) {
+    b.addEventListener('click', function () { runCmd(b.getAttribute('data-cmd')); });
+  });
+  var resetArmed = 0;
+  $('qReset').addEventListener('click', function () {
+    var b = this;
+    if (!resetArmed) {
+      b.textContent = 'Click again to wipe';
+      resetArmed = setTimeout(function () { resetArmed = 0; b.textContent = 'Reset save'; }, 3000);
+    } else {
+      clearTimeout(resetArmed); resetArmed = 0; b.textContent = 'Reset save';
+      runCmd('resetsave confirm');
+    }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.adm [data-at]'), function (t) {
+    t.addEventListener('click', function () {
+      ['cmd', 'cre', 'tun'].forEach(function (k) { $('at-' + k).hidden = k !== t.getAttribute('data-at'); });
+      Array.prototype.forEach.call(document.querySelectorAll('.adm [data-at]'), function (x) { x.className = 'tab' + (x === t ? ' on' : ''); });
+      if (t.getAttribute('data-at') === 'cre') { updateCrPreview(); if (!shopRAF) shopRAF = requestAnimationFrame(shopLoop); }
+      if (t.getAttribute('data-at') === 'cmd') $('cmdIn').focus();
+    });
+  });
+  [['tgDmg', 'dmg'], ['tgSpd', 'spd'], ['tgRock', 'rock'], ['tgRate', 'spawn']].forEach(function (r) {
+    $(r[0]).addEventListener('input', function () { adm[r[1]] = parseFloat(this.value); refreshAdmin(); });
+  });
+  [['tgGod', 'god'], ['tgInf', 'inf'], ['tgFreeze', 'freeze']].forEach(function (r) {
+    $(r[0]).addEventListener('change', function () { adm[r[1]] = this.checked; refreshAdmin(); });
+  });
+  $('tgReset').addEventListener('click', function () { runCmd('normal'); });
+  $('crBall').addEventListener('click', function () { crKind = 'ball'; $('crBall').className = 'tab on'; $('crLaser').className = 'tab'; updateCrPreview(); });
+  $('crLaser').addEventListener('click', function () { crKind = 'laser'; $('crLaser').className = 'tab on'; $('crBall').className = 'tab'; updateCrPreview(); });
+  $('crColor').addEventListener('input', updateCrPreview);
+  $('crRainbow').addEventListener('change', updateCrPreview);
+  $('crForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (save.custom.length >= 30) { $('crMsg').textContent = 'You can keep up to 30 creations. Delete one first.'; return; }
+    var name = $('crName').value.trim() || ('Custom ' + (save.custom.length + 1));
+    var item = addCustom({ kind: crKind, id: 'c_' + Date.now().toString(36), name: name, price: +$('crPrice').value || 0, rgb: hexToRgb($('crColor').value), rainbow: $('crRainbow').checked });
+    if (!item) { $('crMsg').textContent = 'Could not create that item.'; return; }
+    if ($('crOwn').checked) { save.owned[crKind].push(item.id); save.equip[crKind] = item.id; }
+    persist(); applyTheme(); renderCustomList(); $('crName').value = '';
+    $('crMsg').textContent = item.name + ' created' + ($('crOwn').checked ? ' and equipped.' : ' and added to the shop for ' + item.price + ' coins.');
+  });
+
+  resize();
+  reset();
+  // attract mode: a few rocks drifting behind the start card
+  for (var i = 0; i < 5; i++) addEnemy(Math.random() * W, Math.random() * H, 20 + Math.random() * 18, (Math.random() - .5) * 60, (Math.random() - .5) * 60);
+  requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
