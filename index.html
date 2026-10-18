@@ -1,9 +1,10 @@
+
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Laser Ball</title>
+<title>Laser Mania</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap">
 <style>
 /* Layout: full-bleed arena canvas, slim HUD along the top, centered overlay card for start / game over.
@@ -85,6 +86,17 @@ button.mode:hover { filter: none; border-color: var(--beam); box-shadow: 0 0 18p
 .coinline b, .coins b { color: #ffd23f; font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: .04em; }
 .coin { width: 14px; height: 14px; border-radius: 50%; background: #ffd23f; box-shadow: 0 0 10px #ffd23f; display: inline-block; flex: none; }
 #shop { background: rgba(8, 10, 20, .94); }
+#power { background: rgba(8, 10, 20, .94); }
+#powerList { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.prow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; border: 2px solid var(--grid); border-radius: 12px; padding: 12px; background: rgba(14, 19, 36, .85); }
+.pname { font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 14px; }
+.pdesc { color: var(--muted); font-size: 13px; line-height: 1.35; margin-top: 2px; }
+.pnow { color: var(--ball); font-size: 12px; letter-spacing: .04em; margin-top: 4px; }
+.pips { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.pip { width: 16px; height: 8px; border-radius: 3px; background: var(--grid); display: block; }
+.pip.on { background: var(--beam); box-shadow: 0 0 8px var(--beam); }
+.prow button.ibtn { width: auto; min-width: 140px; }
+@media (max-width: 480px) { .prow { grid-template-columns: minmax(0, 1fr); } .prow button.ibtn { width: 100%; } }
 #admin { background: rgba(6, 8, 16, .9); }
 .adm { width: min(660px, 100%); max-height: 100%; overflow-y: auto; background: #0c1020; border: 2px solid var(--grid); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .adm button { margin-top: 0; }
@@ -157,7 +169,7 @@ button.ibtn.buy { background: #ffd23f; color: #241a00; }
 button.ibtn.poor { background: transparent; color: var(--muted); border: 2px solid var(--grid); }
 .shopfoot { display: flex; align-items: center; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
 .shopfoot button { margin: 0; }
-#shopMsg { color: var(--warn); font-weight: 500; }
+#shopMsg, #powerMsg { color: var(--warn); font-weight: 500; }
 .earn { color: #ffd23f; font-weight: 700; margin-top: 8px; font-size: 18px; letter-spacing: .04em; }
 #mute {
   position: absolute; right: 16px; bottom: 6px; margin: 0; padding: 4px 10px; z-index: 2;
@@ -169,6 +181,38 @@ button.ibtn.poor { background: transparent; color: var(--muted); border: 2px sol
 button.ghost { background: transparent; color: var(--fg); border: 2px solid var(--grid); box-shadow: none; }
 button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
 .score-line { font-size: 22px; color: var(--fg); font-weight: 700; margin-top: 14px; font-variant-numeric: tabular-nums; }
+.cs-tag {
+  font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--beam);
+  font-weight: 700; margin-bottom: 4px;
+}
+#cutscene {
+  background: #05070f; z-index: 5; flex-direction: column; padding: 0;
+  align-items: stretch; justify-content: stretch;
+}
+#cutscene .cs-stage {
+  position: relative; flex: 1; min-height: 0; width: 100%; overflow: hidden;
+}
+#csCanvas { display: block; width: 100%; height: 100%; }
+#cutscene .cs-ui {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 20px 24px 18px; background: linear-gradient(transparent, rgba(5,7,15,.95) 30%);
+  pointer-events: none;
+}
+#cutscene .cs-ui .card {
+  max-width: min(640px, 94vw); pointer-events: auto; text-align: left;
+  background: rgba(10,14,28,.88); border: 2px solid var(--grid); border-radius: 14px;
+  padding: 18px 20px; margin: 0 auto; max-height: 42vh; overflow-y: auto;
+}
+#csBody { font-size: 14.5px; line-height: 1.6; }
+#csSkip {
+  position: absolute; top: 14px; right: 16px; z-index: 6;
+  margin: 0; padding: 6px 14px; font-size: 12px; letter-spacing: .12em;
+  background: transparent; color: var(--muted); border: 2px solid var(--grid);
+  border-radius: 8px; box-shadow: none; text-transform: uppercase;
+}
+#csSkip:hover { color: var(--fg); filter: none; border-color: var(--beam); }
+#csBody { white-space: pre-wrap; min-height: 4.5em; }
+.cs-hint { color: var(--muted); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -185,21 +229,38 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   <button id="adminBtn" type="button">Admin</button>
   <div class="overlay" id="start">
     <div class="card">
-      <h1>Laser <span>Ball</span></h1>
+      <h1>Laser <span>Mania</span></h1>
       <div id="menuView">
-        <p>Dodge the drifting rocks and cut them down. Big ones split in two. Your beam bounces off the walls up to three times, so use the angles. Every 10th wave is a boss. Beat the boss on wave 50 to win.</p>
+        <p>Dodge the drifting rocks and cut them down. Big ones split in two. Your beam bounces off the walls up to three times, so use the angles. Every 5th wave a shield power-up appears — grab it for temporary invulnerability. Every 10th wave is a boss. Beat the boss on wave 50 to win. Spend coins in the Shop on skins and laser colors.</p>
         <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><em>move</em><kbd>&#9679;</kbd><em>mouse aims, hold click to fire</em></div>
         <div class="coinline"><i class="coin"></i>Coins <b id="coinsMenu">0</b></div>
-        <div class="menu-btns"><button id="play" type="button">Start game</button><button class="ghost" id="openShop" type="button">Shop</button></div>
+        <div class="menu-btns"><button id="play" type="button">Start game</button><button class="ghost" id="openShop" type="button">Shop</button><button class="ghost" id="openPower" type="button">Power shop</button></div>
       </div>
       <div id="modeView" hidden>
         <p>Pick a difficulty.</p>
         <div class="modes">
           <button class="mode" data-mode="easy"><b>Easy</b><span>1 life &middot; strong laser &middot; never overheats</span></button>
           <button class="mode" data-mode="normal"><b>Normal</b><span>2 lives &middot; laser 20% weaker &middot; 3 second cooldown</span></button>
-          <button class="mode" data-mode="hard"><b>Hard</b><span>3 lives &middot; laser 50% weaker &middot; you move 10% slower &middot; 3 second cooldown</span></button>
+          <button class="mode" data-mode="hard"><b>Hard</b><span>3 lives &middot; laser 50% weaker &middot; you move 10% slower &middot; 5 second cooldown</span></button>
         </div>
         <button class="ghost" id="modeBack" type="button">Back</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="cutscene" hidden>
+    <div class="cs-stage">
+      <canvas id="csCanvas"></canvas>
+      <button id="csSkip" type="button">Skip ▸▸</button>
+      <div class="cs-ui">
+        <div class="card">
+          <div class="cs-tag" id="csTag">SYSTEM LOG</div>
+          <h2 id="csTitle" style="margin:8px 0 10px;font-size:clamp(22px,5vw,32px);letter-spacing:.06em;text-transform:uppercase;color:var(--ball)"></h2>
+          <p id="csBody" style="color:var(--muted);font-size:15px;line-height:1.55;margin:0"></p>
+          <div class="row" style="margin-top:16px;align-items:center;gap:12px">
+            <button id="csContinue" type="button" style="margin:0">Continue</button>
+            <span class="cs-hint">Voice narrates · Space / Enter / Esc to skip</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -207,9 +268,17 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     <div class="shopcard">
       <div class="shophead"><h2>Shop</h2><div class="coins"><i class="coin"></i><b id="coinsShop">0</b></div></div>
       <p class="shopnote">Earn coins by playing: 1 per 10 points, 2 per wave reached, 300 for a win.</p>
-      <div class="tabs"><button class="tab on" id="tabBall" type="button">Ball skins</button><button class="tab" id="tabLaser" type="button">Laser colors</button></div>
+      <div class="tabs"><button class="tab on" id="tabBall" type="button">Ball skins</button><button class="tab" id="tabLaser" type="button">Laser colors</button><button class="tab" id="tabRock" type="button">Rock skins</button><button class="tab" id="tabBg" type="button">Backgrounds</button></div>
       <div class="grid" id="shopGrid"></div>
       <div class="shopfoot"><button class="ghost" id="shopBack" type="button">Back</button><span id="shopMsg"></span></div>
+    </div>
+  </div>
+  <div class="overlay" id="power" hidden>
+    <div class="shopcard">
+      <div class="shophead"><h2>Power shop</h2><div class="coins"><i class="coin"></i><b id="coinsPower">0</b></div></div>
+      <p class="shopnote">Permanent upgrades. They apply to every run on every difficulty.</p>
+      <div id="powerList"></div>
+      <div class="shopfoot"><button class="ghost" id="powerBack" type="button">Back</button><span id="powerMsg"></span></div>
     </div>
   </div>
   <div class="overlay" id="over" hidden>
@@ -218,7 +287,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       <div class="score-line" id="final"></div>
       <p id="bestLine"></p>
       <div class="earn" id="earned"></div>
-      <div class="row"><button id="again" type="button">Play again</button><button class="ghost" id="change" type="button">Change mode</button><button class="ghost" id="overShop" type="button">Shop</button></div>
+      <div class="row"><button id="again" type="button">Play again</button><button class="ghost" id="change" type="button">Change mode</button><button class="ghost" id="overShop" type="button">Shop</button><button class="ghost" id="overPower" type="button">Power shop</button></div>
     </div>
   </div>
   <div class="overlay" id="admin" hidden>
@@ -308,8 +377,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (!AC || muted) return;
     var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t + dur);
-    g.gain.setValueAtTime(vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), t + dur);    g.gain.setValueAtTime(vol || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
   }
   function noise(dur, vol, freq) {
@@ -333,27 +401,138 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (master) master.gain.value = m ? 0 : 0.5;
     if (m) setHum(false);
     $('mute').textContent = m ? 'Sound off' : 'Sound on';
+    // Mute / unmute story narrator if a cutscene is speaking
+    try {
+      if (csVoice) csVoice.volume = m ? 0 : 1;
+      if (m && window.speechSynthesis) { /* keep speaking silently or cancel */ }
+    } catch (e) {}
   }
 
   // ---------- shop data: skins, laser colors and coins, saved in this browser ----------
   var SKINS = [
-    { id: 'cyan',   name: 'Cyan Core', price: 0,   rgb: [93, 242, 255] },
-    { id: 'ice',    name: 'Frost',     price: 90,  rgb: [214, 236, 255] },
-    { id: 'ember',  name: 'Ember',     price: 120, rgb: [255, 140, 50] },
-    { id: 'toxic',  name: 'Toxic',     price: 160, rgb: [155, 255, 58] },
-    { id: 'violet', name: 'Void',      price: 220, rgb: [165, 107, 255] },
-    { id: 'gold',   name: 'Gold Rush', price: 380, rgb: [255, 210, 63] },
-    { id: 'prism',  name: 'Prism',     price: 700, rainbow: true }
+    { id: 'cyan',    name: 'Cyan Core',   price: 0,    rgb: [93, 242, 255] },
+    { id: 'ice',     name: 'Frost',       price: 90,   rgb: [214, 236, 255] },
+    { id: 'ember',   name: 'Ember',       price: 120,  rgb: [255, 140, 50] },
+    { id: 'toxic',   name: 'Toxic',       price: 160,  rgb: [155, 255, 58] },
+    { id: 'violet',  name: 'Void',        price: 220,  rgb: [165, 107, 255] },
+    { id: 'gold',    name: 'Gold Rush',   price: 380,  rgb: [255, 210, 63] },
+    { id: 'crimson', name: 'Crimson',     price: 140,  rgb: [255, 64, 80] },
+    { id: 'mint',    name: 'Mint',        price: 110,  rgb: [80, 255, 200] },
+    { id: 'rose',    name: 'Rose Quartz', price: 180,  rgb: [255, 150, 190] },
+    { id: 'azure',   name: 'Azure',       price: 130,  rgb: [60, 140, 255] },
+    { id: 'amber',   name: 'Amber',       price: 150,  rgb: [255, 180, 40] },
+    { id: 'indigo',  name: 'Indigo',      price: 200,  rgb: [90, 70, 220] },
+    { id: 'lime',    name: 'Lime Pop',    price: 100,  rgb: [180, 255, 40] },
+    { id: 'coral',   name: 'Coral',       price: 160,  rgb: [255, 110, 90] },
+    { id: 'silver',  name: 'Chrome',      price: 250,  rgb: [200, 210, 230] },
+    { id: 'obsidian',name: 'Obsidian',    price: 280,  rgb: [40, 40, 55] },
+    { id: 'peach',   name: 'Peach',       price: 120,  rgb: [255, 180, 150] },
+    { id: 'teal',    name: 'Deep Teal',   price: 170,  rgb: [20, 180, 170] },
+    { id: 'magenta', name: 'Magenta',     price: 190,  rgb: [255, 40, 180] },
+    { id: 'lemon',   name: 'Lemon',       price: 100,  rgb: [255, 240, 80] },
+    { id: 'navy',    name: 'Navy Spark',  price: 210,  rgb: [50, 80, 200] },
+    { id: 'blood',   name: 'Blood Orange',price: 230,  rgb: [220, 50, 20] },
+    { id: 'ghost',   name: 'Ghost',       price: 300,  rgb: [230, 240, 255] },
+    { id: 'neon',    name: 'Hot Neon',    price: 260,  rgb: [255, 20, 147] },
+    { id: 'forest',  name: 'Forest',      price: 180,  rgb: [40, 160, 70] },
+    { id: 'sand',    name: 'Desert Sand', price: 140,  rgb: [230, 190, 120] },
+    { id: 'plasma',  name: 'Plasma',      price: 420,  rgb: [180, 80, 255] },
+    { id: 'ivory',   name: 'Ivory',       price: 200,  rgb: [255, 250, 230] },
+    { id: 'cobalt',  name: 'Cobalt',      price: 240,  rgb: [30, 90, 220] },
+    { id: 'ruby',    name: 'Ruby',        price: 320,  rgb: [200, 20, 60] },
+    { id: 'sapphire',name: 'Sapphire',    price: 320,  rgb: [40, 80, 220] },
+    { id: 'emerald', name: 'Emerald',     price: 320,  rgb: [20, 180, 100] },
+    { id: 'prism',   name: 'Prism',       price: 700,  rainbow: true },
+    { id: 'nova',    name: 'Nova',        price: 900,  rainbow: true }
   ];
   var LASERS = [
-    { id: 'pink',   name: 'Hot Pink',    price: 0,   rgb: [255, 61, 129] },
-    { id: 'cyan',   name: 'Ion Blue',    price: 100, rgb: [46, 200, 255] },
-    { id: 'lime',   name: 'Acid Lime',   price: 150, rgb: [125, 255, 58] },
-    { id: 'violet', name: 'Ultraviolet', price: 220, rgb: [179, 107, 255] },
-    { id: 'solar',  name: 'Solar',       price: 300, rgb: [255, 122, 40] },
-    { id: 'prism',  name: 'Prism',       price: 700, rainbow: true }
+    { id: 'pink',    name: 'Hot Pink',     price: 0,   rgb: [255, 61, 129] },
+    { id: 'cyan',    name: 'Ion Blue',     price: 100, rgb: [46, 200, 255] },
+    { id: 'lime',    name: 'Acid Lime',    price: 150, rgb: [125, 255, 58] },
+    { id: 'violet',  name: 'Ultraviolet',  price: 220, rgb: [179, 107, 255] },
+    { id: 'solar',   name: 'Solar',        price: 300, rgb: [255, 122, 40] },
+    { id: 'white',   name: 'White Hot',    price: 120, rgb: [255, 255, 255] },
+    { id: 'red',     name: 'Crimson Beam', price: 130, rgb: [255, 40, 50] },
+    { id: 'orange',  name: 'Amber Ray',    price: 140, rgb: [255, 150, 30] },
+    { id: 'yellow',  name: 'Gold Beam',    price: 160, rgb: [255, 220, 50] },
+    { id: 'green',   name: 'Toxic Ray',    price: 150, rgb: [60, 255, 100] },
+    { id: 'teal',    name: 'Teal Pulse',   price: 170, rgb: [40, 220, 200] },
+    { id: 'blue',    name: 'Deep Blue',    price: 180, rgb: [50, 100, 255] },
+    { id: 'purple',  name: 'Royal Purple', price: 200, rgb: [140, 60, 255] },
+    { id: 'magenta', name: 'Magenta Slash',price: 210, rgb: [255, 50, 200] },
+    { id: 'ice',     name: 'Ice Lance',    price: 190, rgb: [180, 230, 255] },
+    { id: 'blood',   name: 'Bloodline',    price: 250, rgb: [180, 20, 40] },
+    { id: 'mint',    name: 'Mint Edge',    price: 160, rgb: [100, 255, 200] },
+    { id: 'lavender',name: 'Lavender',     price: 180, rgb: [200, 160, 255] },
+    { id: 'copper',  name: 'Copper Arc',   price: 220, rgb: [220, 120, 60] },
+    { id: 'silver',  name: 'Silver Bolt',  price: 240, rgb: [200, 210, 230] },
+    { id: 'black',   name: 'Shadow Beam',  price: 350, rgb: [80, 80, 100] },
+    { id: 'neon',    name: 'Neon Pink',    price: 280, rgb: [255, 20, 160] },
+    { id: 'forest',  name: 'Forest Ray',   price: 170, rgb: [40, 180, 80] },
+    { id: 'sky',     name: 'Skyline',      price: 150, rgb: [100, 180, 255] },
+    { id: 'rose',    name: 'Rose Beam',    price: 190, rgb: [255, 120, 160] },
+    { id: 'prism',   name: 'Prism',        price: 700, rainbow: true },
+    { id: 'aurora',  name: 'Aurora Beam',  price: 850, rainbow: true }
   ];
-  var save = { coins: 0, owned: { ball: ['cyan'], laser: ['pink'] }, equip: { ball: 'cyan', laser: 'pink' }, custom: [] };
+  var ROCKS = [
+    { id: 'ember',   name: 'Ember Rock',  price: 0,   h0: 20,  h1: 60,  sat: 95,  deco: 'none',    pts: 9 },
+    { id: 'frost',   name: 'Frostbite',   price: 100, h0: 185, h1: 215, sat: 80,  deco: 'facets',  pts: 7 },
+    { id: 'slime',   name: 'Slime',       price: 140, h0: 95,  h1: 135, sat: 90,  deco: 'spots',   pts: 12, soft: true },
+    { id: 'magma',   name: 'Magma',       price: 200, h0: 0,   h1: 18,  sat: 100, deco: 'cracks',  pts: 9 },
+    { id: 'void',    name: 'Voidstone',   price: 260, h0: 262, h1: 285, sat: 85,  deco: 'ring',    pts: 8 },
+    { id: 'candy',   name: 'Candy',       price: 320, h0: 320, h1: 345, sat: 95,  deco: 'stripes', pts: 12 },
+    { id: 'jade',    name: 'Jade',        price: 150, h0: 140, h1: 165, sat: 85,  deco: 'facets',  pts: 8 },
+    { id: 'ruby',    name: 'Ruby Ore',    price: 180, h0: 350, h1: 10,  sat: 100, deco: 'cracks',  pts: 9 },
+    { id: 'sapphire',name: 'Sapphire',    price: 180, h0: 210, h1: 240, sat: 90,  deco: 'facets',  pts: 8 },
+    { id: 'amber',   name: 'Amber Chunk', price: 160, h0: 35,  h1: 50,  sat: 95,  deco: 'none',    pts: 10 },
+    { id: 'obsidian',name: 'Obsidian',    price: 220, h0: 270, h1: 290, sat: 40,  deco: 'cracks',  pts: 7 },
+    { id: 'pearl',   name: 'Pearl',       price: 240, h0: 200, h1: 220, sat: 30,  deco: 'ring',    pts: 12, soft: true },
+    { id: 'toxic',   name: 'Toxic Ore',   price: 200, h0: 100, h1: 130, sat: 100, deco: 'spots',   pts: 11, soft: true },
+    { id: 'copper',  name: 'Copper',      price: 170, h0: 15,  h1: 35,  sat: 80,  deco: 'stripes', pts: 9 },
+    { id: 'moon',    name: 'Moonrock',    price: 280, h0: 220, h1: 250, sat: 20,  deco: 'facets',  pts: 8 },
+    { id: 'sun',     name: 'Sunstone',    price: 300, h0: 40,  h1: 55,  sat: 100, deco: 'ring',    pts: 10 },
+    { id: 'bloom',   name: 'Bloomstone',  price: 260, h0: 300, h1: 330, sat: 90,  deco: 'spots',   pts: 11 },
+    { id: 'iceberg', name: 'Iceberg',     price: 190, h0: 190, h1: 210, sat: 60,  deco: 'facets',  pts: 6 },
+    { id: 'basalt',  name: 'Basalt',      price: 150, h0: 0,   h1: 20,   sat: 25,  deco: 'none',    pts: 8 },
+    { id: 'prism',   name: 'Prism',       price: 600, h0: 0,   h1: 360, sat: 95,  deco: 'facets',  pts: 6, rainbow: true },
+    { id: 'galaxy',  name: 'Galaxy Rock', price: 800, h0: 0,   h1: 360, sat: 90,  deco: 'ring',    pts: 8, rainbow: true }
+  ];
+  var BGS = [
+    { id: 'grid',    name: 'Neon Grid',   price: 0 },
+    { id: 'space',   name: 'Deep Space',  price: 150 },
+    { id: 'synth',   name: 'Synthwave',   price: 200 },
+    { id: 'matrix',  name: 'Code Rain',   price: 250 },
+    { id: 'hex',     name: 'The Hive',    price: 300 },
+    { id: 'aurora',  name: 'Aurora',      price: 450 },
+    { id: 'void',    name: 'Void Black',  price: 180 },
+    { id: 'sunset',  name: 'Sunset Grid', price: 220 },
+    { id: 'ocean',   name: 'Deep Ocean',  price: 240 },
+    { id: 'lava',    name: 'Lava Floor',  price: 280 },
+    { id: 'ice',     name: 'Ice Field',   price: 260 },
+    { id: 'neoncity',name: 'Neon City',   price: 350 },
+    { id: 'stars2',  name: 'Star Storm',  price: 320 },
+    { id: 'purple',  name: 'Purple Haze', price: 300 },
+    { id: 'mint',    name: 'Mint Grid',   price: 200 },
+    { id: 'crimson', name: 'Crimson Pit', price: 340 },
+    { id: 'gold',    name: 'Gold Arena',  price: 400 },
+    { id: 'mono',    name: 'Mono Wire',   price: 160 }
+  ];
+  var POWERS = [
+    { id: 'life',   name: 'Extra Life',    desc: 'Start every run with one more life.',            max: 2, cost: [400, 900],
+      now: function (l) { return '+' + l + (l === 1 ? ' life' : ' lives'); } },
+    { id: 'cool',   name: 'Coolant',       desc: 'The laser heats up slower and cools down faster.', max: 5, cost: [150, 250, 350, 450, 600],
+      now: function (l) { return l * 7 + '% slower heating, ' + l * 10 + '% shorter cooldown'; } },
+    { id: 'dmg',    name: 'Overcharge',    desc: 'The laser does more damage.',                    max: 8, cost: [100, 160, 220, 280, 340, 400, 460, 520],
+      now: function (l) { return '+' + l * 6 + '% laser damage'; } },
+    { id: 'thrust', name: 'Thrusters',     desc: 'Your ball moves faster.',                        max: 5, cost: [120, 180, 240, 300, 360],
+      now: function (l) { return '+' + l * 4 + '% move speed'; } },
+    { id: 'mirror', name: 'Mirror Optics', desc: 'The beam bounces off the walls one more time.',  max: 2, cost: [300, 700],
+      now: function (l) { return '+' + l + (l === 1 ? ' bounce' : ' bounces'); } },
+    { id: 'magnet', name: 'Coin Magnet',   desc: 'Earn more coins at the end of every run.',       max: 5, cost: [200, 300, 400, 500, 650],
+      now: function (l) { return '+' + l * 10 + '% coins'; } }
+  ];
+  function listFor(k) { return k === 'ball' ? SKINS : k === 'laser' ? LASERS : k === 'rock' ? ROCKS : BGS; }
+  var save = { coins: 0, owned: { ball: ['cyan'], laser: ['pink'], rock: ['ember'], bg: ['grid'] }, equip: { ball: 'cyan', laser: 'pink', rock: 'ember', bg: 'grid' }, custom: [], power: {} };
   // admin state: live modifiers, not saved between visits
   var adm = { god: false, inf: false, freeze: false, dmg: 1, spd: 1, rock: 1, spawn: 1, used: false };
   var adminOpen = false;
@@ -380,14 +559,17 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (sv && typeof sv === 'object') {
       if (typeof sv.coins === 'number' && sv.coins > 0) save.coins = Math.floor(sv.coins);
       if (Array.isArray(sv.custom)) sv.custom.slice(0, 30).forEach(function (c) { addCustom(c); });
-      ['ball', 'laser'].forEach(function (k) {
-        var list = k === 'ball' ? SKINS : LASERS;
+      ['ball', 'laser', 'rock', 'bg'].forEach(function (k) {
+        var list = listFor(k);
         if (sv.owned && Array.isArray(sv.owned[k])) {
           sv.owned[k].forEach(function (id) {
             if (save.owned[k].indexOf(id) < 0 && list.some(function (it) { return it.id === id; })) save.owned[k].push(id);
           });
         }
         if (sv.equip && save.owned[k].indexOf(sv.equip[k]) >= 0) save.equip[k] = sv.equip[k];
+      });
+      if (sv.power && typeof sv.power === 'object') POWERS.forEach(function (u) {
+        save.power[u.id] = Math.max(0, Math.min(u.max, Math.floor(+sv.power[u.id] || 0)));
       });
     }
   } catch (e) {}
@@ -402,7 +584,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   function ballRGB() { return skinRGB(findItem(SKINS, save.equip.ball)); }
   function laserRGB() { return skinRGB(findItem(LASERS, save.equip.laser), 90); }
   function rgbs(c) { return 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'; }
-  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (+a).toFixed(3) + ')'; }
   function mix(c, t, to) { return [Math.round(c[0] + (to - c[0]) * t), Math.round(c[1] + (to - c[1]) * t), Math.round(c[2] + (to - c[2]) * t)]; }
   function applyTheme() {
     var b = findItem(SKINS, save.equip.ball), l = findItem(LASERS, save.equip.laser), st = document.documentElement.style;
@@ -423,23 +605,25 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   function bounds() { return { L: M, R: W - M, T: M + TOP, B: H - M }; }
 
   var keys = {}, mouse = { x: 0, y: 0 }, down = false;
-  var p = null, enemies = [], parts = [], rings = [];
+  var p = null, enemies = [], parts = [], rings = [], flashes = [], pops = [], slow = 0, powerups = [];
   var MODES = {
     easy:   { id: 'easy',   name: 'Easy',   lives: 1, dmg: 320, cool: 0, speed: 1 },
     normal: { id: 'normal', name: 'Normal', lives: 2, dmg: 208, cool: 3, speed: 1 },
-    hard:   { id: 'hard',   name: 'Hard',   lives: 3, dmg: 130, cool: 3, speed: 0.9 }
+    hard:   { id: 'hard',   name: 'Hard',   lives: 3, dmg: 130, cool: 5, speed: 0.9 }
   };
   var mode = MODES.normal, overheatT = 0;
+  var TIME_SCALE = 1;
+  var cutsceneOpen = false;
   var LAST = 50, WAVE_LEN = 15; // last wave is the final boss; normal waves last 15 seconds
   var waveT = 0, boss = null, bossT = 0, bullets = [], won = false;
-  var score = 0, lives = 3, wave = 1, time = 0, spawnT = 0, heat = 0, over = false, running = false, shake = 0, best = 0;
+  var score = 0, lives = 3, wave = 1, time = 0, spawnT = 0, heat = 0, over = false, running = false, shake = 0, best = 0, shieldT = 0;
   function loadBest() { try { return parseInt(localStorage.getItem('laserball-best-' + mode.id) || '0', 10) || 0; } catch (e) { return 0; } }
 
   function reset() {
     p = { x: W / 2, y: H / 2, vx: 0, vy: 0, r: 13, inv: 0 };
-    enemies = []; parts = []; rings = [];
-    score = 0; lives = mode.lives; wave = 1; time = 0; spawnT = 0.4; heat = 0; over = false; shake = 0;
-    overheated = false; overheatT = 0;
+    enemies = []; parts = []; rings = []; flashes = []; pops = []; slow = 0; powerups = [];
+    score = 0; lives = mode.lives + PW('life'); wave = 1; time = 0; spawnT = 0.4; heat = 0; over = false; shake = 0;
+    overheated = false; overheatT = 0; shieldT = 0;
     trail = []; flash = 0; tickT = 0; banner = { text: 'Wave 1', t: 0 };
     waveT = 0; boss = null; bossT = 0; bullets = []; won = false; adm.used = false;
     mouse.x = W / 2 + 120; mouse.y = H / 2;
@@ -451,7 +635,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     elScore.textContent = score;
     elWave.textContent = wave + '/' + LAST;
     var h = '';
-    for (var i = 0; i < Math.max(mode.lives, lives); i++) h += '<i class="' + (i < lives ? '' : 'off') + '"></i>';
+    for (var i = 0; i < Math.max(mode.lives + PW('life'), lives); i++) h += '<i class="' + (i < lives ? '' : 'off') + '"></i>';
     elLives.innerHTML = h;
     elFill.style.width = Math.min(100, heat) + '%';
     elHeat.className = 'heat' + (overheated ? ' over' : '');
@@ -471,7 +655,20 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     addEnemy(x, y, r, 0, 0);
   }
   function addEnemy(x, y, r, vx, vy) {
-    enemies.push({ x: x, y: y, vx: vx, vy: vy, r: r, hp: r * 3, max: r * 3, hue: 20 + Math.random() * 40 | 0, hit: 0, rot: Math.random() * 6.28, spin: (Math.random() - .5) * 2, seed: Math.random() * 6.28 });
+    enemies.push({ x: x, y: y, vx: vx, vy: vy, r: r, hp: r * 3, max: r * 3, hue: rockHue(), hit: 0, rot: Math.random() * 6.28, spin: (Math.random() - .5) * 2, seed: Math.random() * 6.28 });
+  }
+
+  // Shield power-up: spawns every 5 waves. Collect for temporary damage immunity.
+  function spawnShield() {
+    var b = bounds(), tries = 0, x, y;
+    do {
+      x = b.L + 50 + Math.random() * (b.R - b.L - 100);
+      y = b.T + 50 + Math.random() * (b.B - b.T - 100);
+      tries++;
+    } while (tries < 20 && Math.hypot(x - p.x, y - p.y) < 140);
+    powerups.push({ x: x, y: y, r: 18, type: 'shield', life: 14, t: 0, bob: Math.random() * 6.28 });
+    rings.push({ x: x, y: y, r: 10, t: 0, dur: 0.7, grow: 50, lw: 3, a: 0.7, c: '#5df2ff' });
+    tone(520, 0.1, 'sine', 0.12, 900);
   }
 
   function burst(x, y, n, color, speed) {
@@ -479,6 +676,263 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       var a = Math.random() * 6.283, s = (0.25 + Math.random()) * speed;
       parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5 + Math.random() * 0.5, t: 0, c: color });
     }
+  }
+
+  // ---------- helpers: upgrades, fx, rock skins, backgrounds ----------
+  function PW(id) { return save.power[id] || 0; }
+  function coolTime() { return mode.cool * (1 - 0.1 * PW('cool')); }
+  function rockHue() { var sk = findItem(ROCKS, save.equip.rock); return (sk.h0 + Math.random() * (sk.h1 - sk.h0)) | 0; }
+  function embers(x, y, n, color, speed) {
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * 6.283, s = Math.random() * speed;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - speed * 0.6, life: 0.6 + Math.random() * 0.8, t: 0, c: color, ember: true, sz: 1.6 + Math.random() * 1.8 });
+    }
+  }
+  function hurtFx() {
+    burst(p.x, p.y, 20, rgbs(ballRGB()), 280);
+    flashes.push({ x: p.x, y: p.y, r: 95, t: 0, dur: 0.3, c: [255, 70, 90] });
+    rings.push({ x: p.x, y: p.y, r: p.r, t: 0, dur: 0.45, grow: 80, lw: 3, c: '#ff4d6a' });
+  }
+  function flare(c, x, y, r, rgb, a) {
+    var g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,' + a.toFixed(3) + ')'); g.addColorStop(0.35, rgba(rgb, a * 0.55)); g.addColorStop(1, rgba(rgb, 0));
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 6.283); c.fill();
+  }
+
+  function drawRock(c, e, sk, now) {
+    var hpk = Math.max(0, e.hp / e.max);
+    var hue = sk.rainbow ? (e.hue + now / 12) % 360 : e.hue;
+    var col = 'hsl(' + hue + ',' + sk.sat + '%,60%)';
+    var pts = e.boss ? 14 : sk.pts, amp = sk.soft && !e.boss ? 0.07 : 0.12, vx = [];
+    c.save(); c.translate(e.x, e.y); c.rotate(e.rot);
+    c.beginPath();
+    for (var v = 0; v <= pts; v++) {
+      var ang = v / pts * 6.283, wob = 1 + amp * Math.sin(v * 2.3 + e.seed);
+      var px = Math.cos(ang) * e.r * wob, py = Math.sin(ang) * e.r * wob;
+      if (v < pts) vx.push([px, py]);
+      if (v === 0) c.moveTo(px, py); else c.lineTo(px, py);
+    }
+    c.closePath();
+    c.fillStyle = e.hit > 0 ? '#ffffff' : 'hsl(' + hue + ',' + Math.round(sk.sat * 0.6) + '%,' + (14 + 22 * hpk) + '%)';
+    c.shadowColor = col; c.shadowBlur = 12;
+    c.fill();
+    c.strokeStyle = col; c.lineWidth = 2.5; c.stroke();
+    c.shadowBlur = 0;
+    if (!e.boss && sk.deco !== 'none' && e.hit <= 0) {
+      c.save(); c.clip();
+      c.strokeStyle = 'hsla(' + hue + ',100%,75%,.55)'; c.fillStyle = 'hsla(' + hue + ',100%,70%,.3)'; c.lineWidth = 1.5;
+      var k, a2;
+      if (sk.deco === 'facets') {
+        c.beginPath(); for (k = 0; k < vx.length; k++) { c.moveTo(0, 0); c.lineTo(vx[k][0], vx[k][1]); } c.stroke();
+      } else if (sk.deco === 'cracks') {
+        c.strokeStyle = 'hsla(42,100%,62%,.9)'; c.lineWidth = 2;
+        for (k = 0; k < 3; k++) {
+          a2 = e.seed + k * 2.1; c.beginPath(); c.moveTo(0, 0);
+          c.lineTo(Math.cos(a2) * e.r * 0.5 + Math.sin(a2 * 3) * e.r * 0.12, Math.sin(a2) * e.r * 0.5);
+          c.lineTo(Math.cos(a2 + 0.25) * e.r * 1.05, Math.sin(a2 + 0.25) * e.r * 1.05); c.stroke();
+        }
+      } else if (sk.deco === 'spots') {
+        for (k = 0; k < 3; k++) { c.beginPath(); c.arc(Math.cos(e.seed + k * 2.2) * e.r * 0.4, Math.sin(e.seed + k * 2.2) * e.r * 0.4, e.r * (0.14 + 0.04 * k), 0, 6.283); c.fill(); }
+      } else if (sk.deco === 'ring') {
+        c.beginPath(); c.arc(0, 0, e.r * 0.5, 0, 6.283); c.stroke();
+        c.beginPath(); c.arc(0, 0, e.r * 0.22, 0, 6.283); c.fill();
+      } else if (sk.deco === 'stripes') {
+        c.strokeStyle = 'hsla(' + hue + ',100%,88%,.35)'; c.lineWidth = e.r * 0.18;
+        for (k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(-e.r, k * e.r * 0.4 - e.r * 0.5); c.lineTo(e.r, k * e.r * 0.4 + e.r * 0.5); c.stroke(); }
+      }
+      c.restore();
+    }
+    if (e.boss) {
+      c.beginPath(); c.arc(0, 0, e.r * 0.45 * (0.9 + 0.1 * Math.sin(now / 150)), 0, 6.283);
+      c.globalAlpha = 0.5; c.fillStyle = col; c.fill(); c.globalAlpha = 1;
+    }
+    c.restore();
+  }
+
+  var STARS = (function () {
+    var s = 12345, out = [];
+    function r() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
+    for (var i = 0; i < 90; i++) out.push({ x: r(), y: r(), z: 0.3 + r() * 0.7, ph: r() * 6.283 });
+    return out;
+  })();
+  var hexCache = {};
+  function hexPath(w, h, hs) {
+    var key = w + 'x' + h + 'x' + hs;
+    if (hexCache[key]) return hexCache[key];
+    if (Object.keys(hexCache).length > 12) hexCache = {};
+    var pth = new Path2D(), dx = Math.sqrt(3) * hs;
+    for (var rr = -1; rr * hs * 1.5 < h + hs; rr++) for (var cc = -1; cc * dx < w + dx; cc++) {
+      var hx = cc * dx + (rr & 1 ? dx / 2 : 0), hy = rr * hs * 1.5;
+      for (var k = 0; k < 6; k++) {
+        var a1 = Math.PI / 180 * (60 * k - 30), a2 = Math.PI / 180 * (60 * (k + 1) - 30);
+        pth.moveTo(hx + hs * Math.cos(a1), hy + hs * Math.sin(a1)); pth.lineTo(hx + hs * Math.cos(a2), hy + hs * Math.sin(a2));
+      }
+    }
+    hexCache[key] = pth; return pth;
+  }
+
+  // draws one arena background into the rectangle x, y, w, h. sc scales details (1 in the game, smaller in previews)
+  function drawBG(c, x, y, w, h, bg, now, sc) {
+    c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip();
+    var id = bg.id, i, g;
+    if (id === 'space') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#05060f'); g.addColorStop(1, '#11143a');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      g = c.createRadialGradient(x + w * 0.75, y + h * 0.3, 0, x + w * 0.75, y + h * 0.3, w * 0.55);
+      g.addColorStop(0, 'rgba(130,80,210,.28)'); g.addColorStop(1, 'rgba(130,80,210,0)');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.fillStyle = '#ffffff';
+      for (i = 0; i < STARS.length; i++) {
+        var st = STARS[i], sx = x + (((st.x * w - now * 0.012 * st.z * sc) % w) + w) % w, sy = y + st.y * h;
+        var sz = (0.8 + 1.8 * st.z) * Math.max(sc, 0.7);
+        c.globalAlpha = (0.25 + 0.75 * (0.5 + 0.5 * Math.sin(now / 500 + st.ph))) * st.z;
+        c.fillRect(sx, sy, sz, sz);
+      }
+      c.globalAlpha = 1;
+    } else if (id === 'synth') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#12062b'); g.addColorStop(0.5, '#2a0a4a'); g.addColorStop(1, '#0d0620');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      var cx = x + w / 2, hy = y + h * 0.46;
+      g = c.createLinearGradient(0, hy - h * 0.24, 0, hy); g.addColorStop(0, '#ffd23f'); g.addColorStop(1, '#ff3d81');
+      c.fillStyle = g; c.beginPath(); c.arc(cx, hy, h * 0.24, Math.PI, 0); c.fill();
+      c.fillStyle = '#2a0a4a';
+      for (i = 1; i < 5; i++) c.fillRect(cx - h * 0.25, hy - i * h * 0.045, h * 0.5, h * 0.007 * i + 1);
+      c.fillStyle = '#0d0620'; c.fillRect(x, hy, w, y + h - hy);
+      c.strokeStyle = 'rgba(255,60,200,.4)'; c.lineWidth = 1; c.beginPath();
+      for (i = -9; i <= 9; i++) { c.moveTo(cx + i * w * 0.012, hy); c.lineTo(cx + i * w * 0.16, y + h); }
+      var shf = (now / 1800) % 1;      for (i = 0; i < 9; i++) { var tt = (i + shf) / 9, yy = hy + (y + h - hy) * tt * tt; c.moveTo(x, yy); c.lineTo(x + w, yy); }
+      c.moveTo(x, hy); c.lineTo(x + w, hy);
+      c.stroke();
+    } else if (id === 'matrix') {
+      c.fillStyle = '#021008'; c.fillRect(x, y, w, h);
+      var cell = Math.max(9, 16 * sc), cols = Math.ceil(w / cell), rows = Math.ceil(h / cell), tick = Math.floor(now / 160);
+      c.font = '700 ' + Math.round(cell * 0.9) + 'px ui-monospace, Menlo, Consolas, monospace'; c.textBaseline = 'top';
+      for (i = 0; i < cols; i++) {
+        var head = ((now / 1000) * (4 + (i * 7) % 8) + i * 13) % (rows + 12);
+        for (var j = 0; j < 10; j++) {
+          var row = Math.floor(head) - j; if (row < 0 || row >= rows) continue;
+          c.fillStyle = j === 0 ? 'rgba(190,255,215,.7)' : 'rgba(40,255,110,' + (0.4 * (1 - j / 10)).toFixed(3) + ')';
+          c.fillText(((i * 31 + row * 17 + tick) % 3) ? '1' : '0', x + i * cell, y + row * cell);
+        }
+      }
+    } else if (id === 'hex') {
+      c.fillStyle = '#0a1316'; c.fillRect(x, y, w, h);
+      c.save(); c.translate(x, y);
+      c.strokeStyle = 'rgba(255,190,60,' + (0.2 + 0.08 * Math.sin(now / 700)).toFixed(3) + ')'; c.lineWidth = 1;
+      c.stroke(hexPath(Math.round(w), Math.round(h), Math.max(10, Math.round(26 * sc))));
+      c.restore();
+      var gx = x + w * (0.5 + 0.35 * Math.sin(now / 2300)), gy = y + h * (0.5 + 0.3 * Math.cos(now / 1900));
+      g = c.createRadialGradient(gx, gy, 0, gx, gy, Math.max(w, h) * 0.4);
+      g.addColorStop(0, 'rgba(255,190,60,.13)'); g.addColorStop(1, 'rgba(255,190,60,0)');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+    } else if (id === 'aurora') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#03101a'); g.addColorStop(1, '#07202a');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.globalCompositeOperation = 'lighter';
+      var tints = ['60,255,170', '80,160,255', '190,100,255'];
+      for (var b3 = 0; b3 < 3; b3++) {
+        var base = y + h * (0.3 + 0.12 * b3);
+        g = c.createLinearGradient(0, base - h * 0.15, 0, base + h * 0.4);
+        g.addColorStop(0, 'rgba(' + tints[b3] + ',0)'); g.addColorStop(0.35, 'rgba(' + tints[b3] + ',.28)'); g.addColorStop(1, 'rgba(' + tints[b3] + ',0)');
+        c.fillStyle = g; c.beginPath(); c.moveTo(x, y + h);
+        for (var px = 0; px <= w + 8; px += 8) c.lineTo(x + px, base + Math.sin(px * 0.011 / Math.max(sc, 0.5) + now / (1500 + b3 * 400) + b3 * 2) * h * 0.09);
+        c.lineTo(x + w, y + h); c.closePath(); c.fill();
+      }
+    } else if (id === 'void') {
+      c.fillStyle = '#020208'; c.fillRect(x, y, w, h);
+      g = c.createRadialGradient(x + w * 0.5, y + h * 0.5, 0, x + w * 0.5, y + h * 0.5, Math.max(w, h) * 0.5);
+      g.addColorStop(0, 'rgba(40,20,80,.25)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+    } else if (id === 'sunset') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#1a0a20'); g.addColorStop(0.5, '#3a1528'); g.addColorStop(1, '#1a0810');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(255,100,80,.2)'; c.lineWidth = 1; c.beginPath();
+      for (var gx3 = x + 40 * sc; gx3 < x + w; gx3 += 40 * sc) { c.moveTo(gx3, y); c.lineTo(gx3, y + h); }
+      c.stroke();
+    } else if (id === 'ocean') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#020e18'); g.addColorStop(1, '#0a2840');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(40,160,220,.15)'; c.lineWidth = 1;
+      c.beginPath(); for (var ow = 0; ow < 6; ow++) {
+        var oy = y + h * (0.3 + ow * 0.12) + Math.sin(now / 900 + ow) * 6;
+        c.moveTo(x, oy); for (var ox = 0; ox <= w; ox += 12) c.lineTo(x + ox, oy + Math.sin(ox * 0.02 + now / 700 + ow) * 5);
+      } c.stroke();
+    } else if (id === 'lava') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#1a0800'); g.addColorStop(1, '#2a1008');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.globalCompositeOperation = 'lighter';
+      for (var lv = 0; lv < 8; lv++) {
+        var lx = x + ((lv * 97 + now * 0.02) % w), ly = y + h * 0.6 + Math.sin(now / 500 + lv) * h * 0.1;
+        g = c.createRadialGradient(lx, ly, 0, lx, ly, 40 * sc);
+        g.addColorStop(0, 'rgba(255,100,20,.25)'); g.addColorStop(1, 'rgba(255,40,0,0)');
+        c.fillStyle = g; c.fillRect(x, y, w, h);
+      }
+    } else if (id === 'ice') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#0a1520'); g.addColorStop(1, '#102838');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(180,220,255,.12)'; c.lineWidth = 1; c.beginPath();
+      for (var ic = 0; ic < 12; ic++) { c.moveTo(x + (ic / 12) * w, y); c.lineTo(x + ((ic + 0.5) / 12) * w, y + h); }
+      c.stroke();
+    } else if (id === 'neoncity') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#0a0618'); g.addColorStop(1, '#120820');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      for (var nb = 0; nb < 14; nb++) {
+        var nx = x + (nb / 14) * w, nw = w / 18, nh = h * (0.2 + (nb * 7 % 5) * 0.1);
+        c.fillStyle = 'rgba(20,10,40,.8)'; c.fillRect(nx, y + h - nh, nw, nh);
+        c.fillStyle = nb % 3 === 0 ? 'rgba(255,60,160,.3)' : 'rgba(60,200,255,.25)';
+        c.fillRect(nx + 2, y + h - nh + 4, nw - 4, 3);
+      }
+    } else if (id === 'stars2') {
+      c.fillStyle = '#03040c'; c.fillRect(x, y, w, h);
+      c.fillStyle = '#ffffff';
+      for (var s2 = 0; s2 < STARS.length; s2++) {
+        var st2 = STARS[s2];
+        c.globalAlpha = 0.3 + 0.7 * st2.z * (0.5 + 0.5 * Math.sin(now / 400 + st2.ph));
+        c.fillRect(x + st2.x * w, y + st2.y * h, 1.5 * st2.z * sc, 1.5 * st2.z * sc);
+      }
+      c.globalAlpha = 1;
+    } else if (id === 'purple') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#10081c'); g.addColorStop(1, '#1a0a28');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      g = c.createRadialGradient(x + w * 0.5, y + h * 0.4, 0, x + w * 0.5, y + h * 0.4, w * 0.4);
+      g.addColorStop(0, 'rgba(140,60,220,.2)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+    } else if (id === 'mint') {
+      c.fillStyle = '#061412'; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(60,220,180,.18)'; c.lineWidth = 1; c.beginPath();
+      var mgs = 36 * sc;
+      for (var mgx = x + mgs; mgx < x + w; mgx += mgs) { c.moveTo(mgx, y); c.lineTo(mgx, y + h); }
+      for (var mgy = y + mgs; mgy < y + h; mgy += mgs) { c.moveTo(x, mgy); c.lineTo(x + w, mgy); }
+      c.stroke();
+    } else if (id === 'crimson') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#140408'); g.addColorStop(1, '#200810');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(220,40,60,.15)'; c.lineWidth = 1; c.beginPath();
+      for (var cg = 0; cg < 8; cg++) { c.moveTo(x, y + (cg / 8) * h); c.lineTo(x + w, y + (cg / 8) * h); }
+      c.stroke();
+    } else if (id === 'gold') {
+      g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#141008'); g.addColorStop(1, '#1c1608');
+      c.fillStyle = g; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(255,200,60,.15)'; c.lineWidth = 1; c.beginPath();
+      var ggs = 40 * sc;
+      for (var ggx = x + ggs; ggx < x + w; ggx += ggs) { c.moveTo(ggx, y); c.lineTo(ggx, y + h); }
+      c.stroke();
+    } else if (id === 'mono') {
+      c.fillStyle = '#0c0c0e'; c.fillRect(x, y, w, h);
+      c.strokeStyle = 'rgba(180,180,190,.12)'; c.lineWidth = 1; c.beginPath();
+      var mns = 28 * sc;
+      for (var mnx = x + mns; mnx < x + w; mnx += mns) { c.moveTo(mnx, y); c.lineTo(mnx, y + h); }
+      for (var mny = y + mns; mny < y + h; mny += mns) { c.moveTo(x, mny); c.lineTo(x + w, mny); }
+      c.stroke();
+    } else {
+      c.fillStyle = '#0e1324'; c.fillRect(x, y, w, h);
+      c.strokeStyle = '#19203a'; c.lineWidth = 1; c.beginPath();
+      var gs = 40 * sc;
+      for (var gx2 = x + gs; gx2 < x + w; gx2 += gs) { c.moveTo(gx2 + 0.5, y); c.lineTo(gx2 + 0.5, y + h); }
+      for (var gy2 = y + gs; gy2 < y + h; gy2 += gs) { c.moveTo(x, gy2 + 0.5); c.lineTo(x + w, gy2 + 0.5); }
+      c.stroke();
+    }
+    c.restore();
   }
 
   function segDist(px, py, ax, ay, bx, by) {
@@ -513,7 +967,11 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (e.boss) {
       score += Math.round(500 * e.tier);
       burst(e.x, e.y, 90, '#e0a8ff', 430); burst(e.x, e.y, 40, '#ffffff', 300);
-      rings.push({ x: e.x, y: e.y, r: e.r, t: 0 }, { x: e.x, y: e.y, r: e.r * 1.6, t: 0 }, { x: e.x, y: e.y, r: e.r * 2.2, t: 0 });
+      rings.push({ x: e.x, y: e.y, r: e.r, t: 0, dur: 0.6, grow: 160, lw: 4, c: '#e0a8ff' }, { x: e.x, y: e.y, r: e.r * 1.4, t: 0, dur: 0.8, grow: 260, lw: 3, c: '#ffffff' }, { x: e.x, y: e.y, r: e.r * 2, t: 0, dur: 1, grow: 380, lw: 2, c: '#b36bff' });
+      flashes.push({ x: e.x, y: e.y, r: e.r * 4, t: 0, dur: 0.6, c: [224, 168, 255] });
+      embers(e.x, e.y, 40, '#e0a8ff', 200);
+      pops.push({ x: e.x, y: e.y, t: 0, txt: '+' + Math.round(500 * e.tier), c: '#e0a8ff', big: true });
+      slow = 0.9;
       shake = 24; flash = 0.6;
       noise(1.2, 0.5, 2000); tone(120, 0.9, 'sawtooth', 0.3, 30);
       bullets = []; boss = null;
@@ -521,8 +979,13 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       return;
     }
     score += Math.round(e.r);
-    burst(e.x, e.y, 16, 'hsl(' + e.hue + ',95%,62%)', 240);
-    rings.push({ x: e.x, y: e.y, r: e.r, t: 0 });
+    var hrgb = hsl2rgb(e.hue % 360), hcol = 'hsl(' + e.hue + ',100%,65%)';
+    burst(e.x, e.y, 28, 'hsl(' + e.hue + ',95%,62%)', 280);
+    burst(e.x, e.y, 12, '#ffffff', 200);
+    embers(e.x, e.y, 10 + Math.round(e.r / 5), hcol, 140);
+    flashes.push({ x: e.x, y: e.y, r: e.r * 2.4, t: 0, dur: 0.24, c: hrgb });
+    rings.push({ x: e.x, y: e.y, r: e.r, t: 0, grow: 45, lw: 3, c: hcol });
+    pops.push({ x: e.x, y: e.y - e.r * 0.5, t: 0, txt: '+' + Math.round(e.r), c: '#ffffff', big: e.r > 26 });
     shake = Math.min(shake + 4, 10);
     noise(0.15 + e.r / 120, 0.3, 2400 - e.r * 30); tone(180 - e.r, 0.22, 'sine', 0.28, 40);
     rings.push({ x: e.x, y: e.y, r: e.r * 0.5, t: 0 });
@@ -550,16 +1013,24 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
 
   function nextWave() {
     wave++; waveT = 0;
+    rings.push({ x: W / 2, y: (bounds().T + bounds().B) / 2, r: 20, t: 0, dur: 0.9, grow: Math.max(W, H) * 0.7, lw: 3, a: 0.6, c: rgbs(laserRGB()) });
     var isBoss = wave % 10 === 0;
     banner = { text: isBoss ? (wave >= LAST ? 'Final boss' : 'Boss wave ' + wave) : 'Wave ' + wave, t: 0 };
-    if (isBoss) {
-      startBoss();
-      tone(70, 1.2, 'sawtooth', 0.3, 35); noise(0.9, 0.35, 300);
-    } else {
-      tone(440, 0.12, 'square', 0.12);
-      setTimeout(function () { tone(660, 0.12, 'square', 0.12); }, 100);
-      setTimeout(function () { tone(880, 0.22, 'square', 0.12); }, 200);
+
+    function doWaveStart() {
+      if (isBoss) {
+        startBoss();
+        tone(70, 1.2, 'sawtooth', 0.3, 35); noise(0.9, 0.35, 300);
+      } else {
+        tone(440, 0.12, 'square', 0.12);
+        setTimeout(function () { tone(660, 0.12, 'square', 0.12); }, 100);
+        setTimeout(function () { tone(880, 0.22, 'square', 0.12); }, 200);
+      }
+      // Shield power-up every 5 waves (waves 5, 10, 15, …)
+      if (wave % 5 === 0) spawnShield();
     }
+
+    doWaveStart();
   }
 
   function update(dt) {
@@ -571,7 +1042,8 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     var ax = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0);
     var ay = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0);
     if (ax && ay) { ax *= 0.7071; ay *= 0.7071; }
-    p.vx += ax * 2400 * mode.speed * adm.spd * dt; p.vy += ay * 2400 * mode.speed * adm.spd * dt;
+    var acc = 2400 * mode.speed * adm.spd * (1 + 0.04 * PW('thrust'));
+    p.vx += ax * acc * dt; p.vy += ay * acc * dt;
     var f = Math.exp(-5.2 * dt); p.vx *= f; p.vy *= f;
     p.x += p.vx * dt; p.y += p.vy * dt;
     if (p.x < b.L + p.r) { p.x = b.L + p.r; p.vx = Math.abs(p.vx) * 0.5; }
@@ -579,6 +1051,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (p.y < b.T + p.r) { p.y = b.T + p.r; p.vy = Math.abs(p.vy) * 0.5; }
     if (p.y > b.B - p.r) { p.y = b.B - p.r; p.vy = -Math.abs(p.vy) * 0.5; }
     if (p.inv > 0) p.inv -= dt;
+    if (shieldT > 0) shieldT -= dt;
     trail.push({ x: p.x, y: p.y }); if (trail.length > 16) trail.shift();
 
     // laser heat
@@ -587,12 +1060,12 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     else if (mode.cool) {
       if (overheated) {
         overheatT -= dt;
-        heat = Math.max(0, 100 * overheatT / mode.cool);
+        heat = Math.max(0, 100 * overheatT / coolTime());
         if (overheatT <= 0) { overheated = false; heat = 0; tone(700, 0.12, 'sine', 0.15, 1100); }
       } else {
-        if (firing) heat += 28 * dt; else heat = Math.max(0, heat - 60 * dt);
+        if (firing) heat += 28 * (1 - 0.07 * PW('cool')) * dt; else heat = Math.max(0, heat - 60 * dt);
         if (heat >= 100) {
-          heat = 100; overheated = true; overheatT = mode.cool;
+          heat = 100; overheated = true; overheatT = coolTime();
           noise(0.4, 0.25, 3000); tone(420, 0.5, 'sawtooth', 0.18, 60);
           burst(p.x, p.y, 14, '#ffc247', 200);
         }
@@ -609,13 +1082,13 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     // beam damage
     var hitAny = false;
     if (firing) {
-      var segs = beamPath(3);
+      var segs = beamPath(3 + PW('mirror'));
       for (var i = 0; i < enemies.length; i++) {
         var e = enemies[i];
         for (var s = 0; s < segs.length; s++) {
           var g = segs[s];
           if (segDist(e.x, e.y, g[0], g[1], g[2], g[3]) < e.r + 3) {
-            e.hp -= mode.dmg * adm.dmg * dt; e.hit = 0.08; hitAny = true;
+            e.hp -= mode.dmg * adm.dmg * (1 + 0.06 * PW('dmg')) * dt; e.hit = 0.08; hitAny = true;
             if (Math.random() < 0.5) burst(e.x, e.y, 1, '#ffd2e3', 120);
             break;
           }
@@ -624,10 +1097,18 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     }
 
     setHum(firing, hitAny);
+    if (firing && Math.random() < 0.95) {
+      var ad = Math.atan2(mouse.y - p.y, mouse.x - p.x);
+      for (var sp = 0; sp < 2; sp++) {
+        var sa = ad + (Math.random() - 0.5) * 0.7, ss = 140 + Math.random() * 260;
+        parts.push({ x: p.x + Math.cos(ad) * p.r, y: p.y + Math.sin(ad) * p.r, vx: Math.cos(sa) * ss + p.vx * 0.3, vy: Math.sin(sa) * ss + p.vy * 0.3, life: 0.28 + Math.random() * 0.25, t: 0, c: rgbs(mix(laserRGB(), 0.4, 255)) });
+      }
+    }
+    if (overheated && Math.random() < 0.85) embers(p.x + (Math.random() - 0.5) * 12, p.y - p.r, 2, '#aab4d8', 50);
 
     // the beam shoots down boss bullets
     if (firing && bullets.length) {
-      var bsegs = beamPath(3);
+      var bsegs = beamPath(3 + PW('mirror'));
       for (var bi = bullets.length - 1; bi >= 0; bi--) {
         for (var bs = 0; bs < bsegs.length; bs++) {
           var bg = bsegs[bs];
@@ -657,12 +1138,16 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       var bu = bullets[bj];
       bu.x += bu.vx * dt; bu.y += bu.vy * dt;
       if (bu.x < bb.L - 20 || bu.x > bb.R + 20 || bu.y < bb.T - 20 || bu.y > bb.B + 20) { bullets.splice(bj, 1); continue; }
-      if (p.inv <= 0 && !adm.god && Math.hypot(bu.x - p.x, bu.y - p.y) < p.r + 6) {
+      if (p.inv <= 0 && shieldT <= 0 && !adm.god && Math.hypot(bu.x - p.x, bu.y - p.y) < p.r + 6) {
         bullets.splice(bj, 1);
         lives--; p.inv = 1.6; shake = 12; flash = 1;
         noise(0.5, 0.45, 700); tone(300, 0.4, 'sawtooth', 0.22, 60);
-        burst(p.x, p.y, 20, rgbs(ballRGB()), 280);
+        hurtFx();
         if (lives <= 0) { endGame(); return; }
+      } else if (shieldT > 0 && Math.hypot(bu.x - p.x, bu.y - p.y) < p.r + 8) {
+        bullets.splice(bj, 1);
+        burst(bu.x, bu.y, 6, '#5df2ff', 160);
+        tone(880, 0.08, 'sine', 0.1, 1200);
       }
     }
     if (hitAny) {
@@ -682,13 +1167,17 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       en.x += en.vx * dt; en.y += en.vy * dt;
       en.rot += en.spin * dt;
       if (en.hit > 0) en.hit -= dt;
-      if (d < en.r + p.r && p.inv <= 0 && !adm.god) {
+      if (d < en.r + p.r && p.inv <= 0 && shieldT <= 0 && !adm.god) {
         lives--; p.inv = 1.6; shake = 12; flash = 1;
         noise(0.5, 0.45, 700); tone(300, 0.4, 'sawtooth', 0.22, 60);
-        burst(p.x, p.y, 20, rgbs(ballRGB()), 280);
+        hurtFx();
         p.vx -= dx / d * 520; p.vy -= dy / d * 520;
         en.vx += dx / d * 260; en.vy += dy / d * 260;
         if (lives <= 0) { endGame(); return; }
+      } else if (d < en.r + p.r && shieldT > 0) {
+        p.vx -= dx / d * 380; p.vy -= dy / d * 380;
+        en.vx += dx / d * 200; en.vy += dy / d * 200;
+        if (Math.random() < 0.3) burst(p.x - dx / d * p.r, p.y - dy / d * p.r, 2, '#5df2ff', 100);
       }
     }
 
@@ -698,13 +1187,33 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       if (dd < min) { var push = (min - dd) / 2; a.x -= ddx / dd * push; a.y -= ddy / dd * push; c.x += ddx / dd * push; c.y += ddy / dd * push; }
     }
 
+    // power-ups (shield)
+    for (var pu = powerups.length - 1; pu >= 0; pu--) {
+      var up = powerups[pu];
+      up.t += dt;
+      up.bob += dt * 3;
+      if (up.t > up.life) { powerups.splice(pu, 1); continue; }
+      if (Math.hypot(up.x - p.x, up.y - p.y) < up.r + p.r + 4) {
+        shieldT = Math.max(shieldT, 10);
+        rings.push({ x: p.x, y: p.y, r: p.r, t: 0, dur: 0.55, grow: 70, lw: 3, c: '#5df2ff' });
+        flashes.push({ x: p.x, y: p.y, r: 70, t: 0, dur: 0.35, c: [93, 242, 255] });
+        burst(up.x, up.y, 18, '#5df2ff', 220);
+        tone(660, 0.12, 'sine', 0.15, 1100);
+        setTimeout(function () { tone(990, 0.18, 'sine', 0.12, 1400); }, 80);
+        pops.push({ x: up.x, y: up.y - 12, t: 0, txt: 'SHIELD', c: '#5df2ff', big: true });
+        powerups.splice(pu, 1);
+      }
+    }
+
     // particles
     for (var q = parts.length - 1; q >= 0; q--) {
       var pt = parts[q]; pt.t += dt;
       if (pt.t > pt.life) { parts.splice(q, 1); continue; }
       pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vx *= 0.96; pt.vy *= 0.96;
     }
-    for (var r = rings.length - 1; r >= 0; r--) { rings[r].t += dt; if (rings[r].t > 0.35) rings.splice(r, 1); }
+    for (var r = rings.length - 1; r >= 0; r--) { rings[r].t += dt; if (rings[r].t > (rings[r].dur || 0.35)) rings.splice(r, 1); }
+    for (var fi = flashes.length - 1; fi >= 0; fi--) { flashes[fi].t += dt; if (flashes[fi].t > flashes[fi].dur) flashes.splice(fi, 1); }
+    for (var po = pops.length - 1; po >= 0; po--) { pops[po].t += dt; pops[po].y -= 38 * dt; if (pops[po].t > 0.9) pops.splice(po, 1); }
     shake = Math.max(0, shake - 30 * dt);
     flash = Math.max(0, flash - 3 * dt);
     if (banner) { banner.t += dt; if (banner.t > 1.6) banner = null; }
@@ -714,60 +1223,50 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
 
   function render() {
     var b = bounds();
-    var LR = laserRGB(), BR = ballRGB();
+    var LR = laserRGB(), BR = ballRGB(), now = performance.now(), RS = findItem(ROCKS, save.equip.rock), bgd = findItem(BGS, save.equip.bg);
     ctx.clearRect(0, 0, W, H);
     ctx.fillStyle = '#0a0d18'; ctx.fillRect(0, 0, W, H);
     ctx.save();
     if (shake > 0) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
 
-    // arena floor + grid
-    ctx.fillStyle = '#0e1324'; ctx.fillRect(b.L, b.T, b.R - b.L, b.B - b.T);
-    ctx.strokeStyle = '#19203a'; ctx.lineWidth = 1; ctx.beginPath();
-    for (var gx = b.L + 40; gx < b.R; gx += 40) { ctx.moveTo(gx + .5, b.T); ctx.lineTo(gx + .5, b.B); }
-    for (var gy = b.T + 40; gy < b.B; gy += 40) { ctx.moveTo(b.L, gy + .5); ctx.lineTo(b.R, gy + .5); }
-    ctx.stroke();
+    drawBG(ctx, b.L, b.T, b.R - b.L, b.B - b.T, bgd, now, 1);
     ctx.save();
     ctx.shadowColor = rgbs(LR); ctx.shadowBlur = 14; ctx.strokeStyle = rgbs(LR); ctx.lineWidth = 2;
     ctx.strokeRect(b.L, b.T, b.R - b.L, b.B - b.T);
     ctx.restore();
 
     if (p) {
-      // particles + rings
-      for (var q = 0; q < parts.length; q++) {
-        var pt = parts[q], k = 1 - pt.t / pt.life;
-        ctx.globalAlpha = k; ctx.fillStyle = pt.c;
-        ctx.fillRect(pt.x - 1.5, pt.y - 1.5, 3, 3);
+      // rings, flashes and particles (additive, so overlaps glow)
+      for (var r = 0; r < rings.length; r++) {
+        var rg = rings[r], t = rg.t / (rg.dur || 0.35);
+        ctx.globalAlpha = (1 - t) * (rg.a || 1); ctx.strokeStyle = rg.c || '#fff'; ctx.lineWidth = (rg.lw || 2) * (1 - t * 0.5) + 0.5;
+        ctx.beginPath(); ctx.arc(rg.x, rg.y, rg.r + t * (rg.grow || 30), 0, 6.283); ctx.stroke();
       }
       ctx.globalAlpha = 1;
-      for (var r = 0; r < rings.length; r++) {
-        var rg = rings[r], t = rg.t / 0.35;
-        ctx.globalAlpha = 1 - t; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(rg.x, rg.y, rg.r + t * 30, 0, 6.283); ctx.stroke();
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (var fl = 0; fl < flashes.length; fl++) {
+        var fo = flashes[fl], fk = fo.t / fo.dur, fr = fo.r * (0.5 + fk * 0.7);
+        var fg = ctx.createRadialGradient(fo.x, fo.y, 0, fo.x, fo.y, fr);
+        fg.addColorStop(0, 'rgba(255,255,255,' + ((1 - fk) * 0.8).toFixed(3) + ')'); fg.addColorStop(0.4, rgba(fo.c, (1 - fk) * 0.45)); fg.addColorStop(1, rgba(fo.c, 0));
+        ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(fo.x, fo.y, fr, 0, 6.283); ctx.fill();
       }
+      for (var q = 0; q < parts.length; q++) {
+        var pt = parts[q], k = 1 - pt.t / pt.life;
+        ctx.globalAlpha = k * k;
+        if (pt.ember) { ctx.fillStyle = pt.c; ctx.beginPath(); ctx.arc(pt.x, pt.y, (pt.sz || 2.4) * (0.4 + k), 0, 6.283); ctx.fill(); }        else { ctx.strokeStyle = pt.c; ctx.lineWidth = 1 + 2 * k; ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(pt.x - pt.vx * 0.045, pt.y - pt.vy * 0.045); ctx.stroke(); }
+      }
+      ctx.restore();
       ctx.globalAlpha = 1;
 
       // enemies
       for (var i = 0; i < enemies.length; i++) {
-        var e = enemies[i], hpk = Math.max(0, e.hp / e.max);
-        var col = 'hsl(' + e.hue + ',95%,60%)';
-        ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.rot);
-        ctx.beginPath();
-        var pts = e.boss ? 14 : 9;
-        for (var v = 0; v <= pts; v++) {
-          var ang = v / pts * 6.283, wob = 1 + 0.12 * Math.sin(v * 2.3 + e.seed);
-          var px = Math.cos(ang) * e.r * wob, py = Math.sin(ang) * e.r * wob;
-          if (v === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.fillStyle = e.hit > 0 ? '#ffffff' : 'hsl(' + e.hue + ',60%,' + (14 + 22 * hpk) + '%)';
-        ctx.shadowColor = col; ctx.shadowBlur = 12;
-        ctx.fill();
-        ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.stroke();
+        var e = enemies[i];
+        drawRock(ctx, e, e.boss ? ROCKS[0] : RS, now);
         if (e.boss) {
-          ctx.beginPath(); ctx.arc(0, 0, e.r * 0.45 * (0.9 + 0.1 * Math.sin(performance.now() / 150)), 0, 6.283);
-          ctx.globalAlpha = 0.5; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1;
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          flare(ctx, e.x, e.y, e.r * 1.9, [170, 90, 255], 0.22 + 0.08 * Math.sin(now / 200));
+          ctx.restore();
         }
-        ctx.restore();
       }
 
       // boss bullets
@@ -776,10 +1275,32 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
         ctx.beginPath(); ctx.arc(bullets[bi2].x, bullets[bi2].y, 6, 0, 6.283); ctx.fill(); ctx.restore();
       }
 
+      // shield power-ups
+      for (var pi = 0; pi < powerups.length; pi++) {
+        var up = powerups[pi];
+        var uy = up.y + Math.sin(up.bob) * 4;
+        var pulse = 0.7 + 0.3 * Math.sin(now / 200);
+        var fade = up.t > up.life - 2.5 ? Math.max(0, (up.life - up.t) / 2.5) : 1;
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.shadowColor = '#5df2ff'; ctx.shadowBlur = 18;
+        var ug = ctx.createRadialGradient(up.x, uy, 2, up.x, uy, up.r);
+        ug.addColorStop(0, 'rgba(255,255,255,' + (0.9 * pulse).toFixed(3) + ')');
+        ug.addColorStop(0.45, 'rgba(93,242,255,' + (0.7 * pulse).toFixed(3) + ')');
+        ug.addColorStop(1, 'rgba(93,242,255,0)');
+        ctx.fillStyle = ug; ctx.beginPath(); ctx.arc(up.x, uy, up.r, 0, 6.283); ctx.fill();
+        ctx.strokeStyle = 'rgba(93,242,255,' + (0.85 * pulse).toFixed(3) + ')'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(up.x, uy, up.r * 0.72, 0, 6.283); ctx.stroke();
+        ctx.beginPath(); ctx.arc(up.x, uy, up.r * 0.4, 0, 6.283); ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.font = '700 14px "Chakra Petch", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('S', up.x, uy + 1);
+        ctx.restore();
+      }
+
       // laser
       var firing = down && !overheated;
       if (firing) {
-        var segs = beamPath(3);
+        var segs = beamPath(3 + PW('mirror'));
         ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         var wob = 0.85 + Math.random() * 0.3;
         [[14 * wob, rgba(LR, 0.18)], [7 * wob, rgba(LR, 0.55)], [2.6, '#ffffff']].forEach(function (L) {
@@ -790,8 +1311,13 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
           ctx.stroke();
         });
         ctx.restore();
-        // wall sparks
-        for (var s2 = 0; s2 < segs.length - 1; s2++) if (Math.random() < 0.6) burst(segs[s2][2], segs[s2][3], 1, rgbs(mix(LR, 0.5, 255)), 160);
+        // wall sparks (heavy VFX)
+        for (var s2 = 0; s2 < segs.length - 1; s2++) if (Math.random() < 0.85) burst(segs[s2][2], segs[s2][3], 2, rgbs(mix(LR, 0.5, 255)), 200);
+        // glowing flares where the beam bounces, ends, or hits a rock
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (var s3 = 0; s3 < segs.length; s3++) flare(ctx, segs[s3][2], segs[s3][3], 20 + Math.random() * 6, LR, 0.8);
+        for (var i3 = 0; i3 < enemies.length; i3++) if (enemies[i3].hit > 0) flare(ctx, enemies[i3].x, enemies[i3].y, enemies[i3].r * 1.3, LR, 0.55);
+        ctx.restore();
       } else {
         var aim = beamPath(0)[0];
         ctx.save(); ctx.setLineDash([3, 9]); ctx.strokeStyle = overheated ? 'rgba(255,194,71,.45)' : rgba(LR, 0.45); ctx.lineWidth = 2;
@@ -821,6 +1347,27 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
         ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
         ctx.restore();
       }
+      // invulnerability ring after a hit, active shield bubble, and heat halo
+      if (p.inv > 0) {
+        ctx.strokeStyle = rgba(BR, Math.min(1, p.inv) * 0.6); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 8 + Math.sin(now / 90) * 2, 0, 6.283); ctx.stroke();
+      }
+      if (shieldT > 0) {
+        var sAlpha = Math.min(1, shieldT / 1.5) * (0.55 + 0.2 * Math.sin(now / 120));
+        var sR = p.r + 11 + Math.sin(now / 100) * 2;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = 'rgba(93,242,255,' + sAlpha.toFixed(3) + ')'; ctx.lineWidth = 3;
+        ctx.shadowColor = '#5df2ff'; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.arc(p.x, p.y, sR, 0, 6.283); ctx.stroke();
+        ctx.strokeStyle = 'rgba(180,255,255,' + (sAlpha * 0.5).toFixed(3) + ')'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(p.x, p.y, sR - 4, 0, 6.283); ctx.stroke();
+        ctx.restore();
+      }
+      if (heat > 60 && !overheated) {
+        ctx.strokeStyle = 'rgba(255,194,71,' + (((heat - 60) / 40) * 0.7).toFixed(3) + ')'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 4, 0, 6.283); ctx.stroke();
+      }
       // crosshair
       ctx.strokeStyle = overheated ? '#ffc247' : rgbs(LR); ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 9, 0, 6.283);
@@ -829,11 +1376,22 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
       ctx.moveTo(mouse.x, mouse.y - 15); ctx.lineTo(mouse.x, mouse.y - 5);
       ctx.moveTo(mouse.x, mouse.y + 5); ctx.lineTo(mouse.x, mouse.y + 15);
       ctx.stroke();
+      // floating score popups
+      for (var po2 = 0; po2 < pops.length; po2++) {
+        var pp = pops[po2];
+        ctx.save(); ctx.globalAlpha = Math.max(0, 1 - pp.t / 0.9); ctx.textAlign = 'center';
+        ctx.font = '700 ' + (pp.big ? 22 : 14) + 'px "Chakra Petch", sans-serif';
+        ctx.fillStyle = pp.c; ctx.shadowColor = pp.c; ctx.shadowBlur = 8;
+        ctx.fillText(pp.txt, pp.x, pp.y); ctx.restore();
+      }
     }
     ctx.restore();
 
     // screen effects (not shaken)
-    if (p && running && lives === 1 && mode.lives > 1) {
+    var vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.4)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+    if (p && running && lives === 1 && mode.lives + PW('life') > 1) {
       var pulse = 0.25 + 0.15 * Math.sin(performance.now() / 180);
       var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
       vg.addColorStop(0, 'rgba(255,0,60,0)'); vg.addColorStop(1, 'rgba(255,0,60,' + pulse + ')');
@@ -877,21 +1435,42 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (clean && score > best) { best = score; try { localStorage.setItem('laserball-best-' + mode.id, String(best)); } catch (e) {} }
     $('final').textContent = mode.name + '  ·  Score ' + score + '  ·  Wave ' + wave;
     $('bestLine').textContent = !clean ? 'Admin run: it does not count for best score.' : isBest ? 'New best score on ' + mode.name + '.' : 'Best score on ' + mode.name + ': ' + best + '.';
-    var earned = clean ? Math.floor(score / 10) + (wave - 1) * 2 + (win ? 300 : 0) : 0;
+    var earned = clean ? Math.round((Math.floor(score / 10) + (wave - 1) * 2 + (win ? 300 : 0)) * (1 + 0.1 * PW('magnet'))) : 0;
     save.coins += earned; persist(); coinsText();
     $('earned').textContent = clean ? '+' + earned + ' coins' : 'No coins on admin runs';
-    show('over');
     drawHud();
+
+    show('over');
   }
 
   // ---------- screens and shop UI ----------
-  function show(which) { ['start', 'shop', 'over'].forEach(function (id) { $(id).hidden = id !== which; }); }
-  function coinsText() { $('coinsMenu').textContent = save.coins; $('coinsShop').textContent = save.coins; }
+  function show(which) {
+    ['start', 'shop', 'power', 'over'].forEach(function (id) { $(id).hidden = id !== which; });
+    if (which !== null) $('cutscene').hidden = true;
+  }
+  function coinsText() { $('coinsMenu').textContent = save.coins; $('coinsShop').textContent = save.coins; $('coinsPower').textContent = save.coins; }
   var shopTab = 'ball', shopReturn = 'start', shopRAF = 0, previews = [];
 
   function drawPreview(pc) {
     var c = pc.cv.getContext('2d'), w = pc.cv.width, h = pc.cv.height, isBall = pc.kind === 'ball';
     c.clearRect(0, 0, w, h);
+    if (pc.kind === 'bg' || pc.kind === 'rock') {
+      var pnow = performance.now();
+      drawBG(c, 0, 0, w, h, pc.kind === 'bg' ? pc.it : findItem(BGS, save.equip.bg), pnow, 0.4);
+      if (pc.kind === 'rock') {
+        drawRock(c, { x: w / 2, y: h / 2, r: 26, rot: pnow / 2500, hue: Math.round((pc.it.h0 + pc.it.h1) / 2) % 360, seed: 1.3, hit: 0, hp: 1, max: 1 }, pc.it, pnow);
+      } else {
+        var mb = ballRGB(), ml = laserRGB(), mx = w * 0.3, my = h / 2;
+        c.save(); c.lineCap = 'round';
+        [[7, rgba(ml, 0.2)], [3.5, rgba(ml, 0.6)], [1.6, '#ffffff']].forEach(function (L) {
+          c.strokeStyle = L[1]; c.lineWidth = L[0]; c.shadowColor = rgbs(ml); c.shadowBlur = L[0] > 3 ? 10 : 0;
+          c.beginPath(); c.moveTo(mx, my); c.lineTo(w - 6, my); c.stroke();
+        });
+        c.restore();
+        c.save(); c.shadowColor = rgbs(mb); c.shadowBlur = 12; c.fillStyle = rgbs(mb); c.beginPath(); c.arc(mx, my, 9, 0, 6.283); c.fill(); c.restore();
+      }
+      return;
+    }
     c.fillStyle = '#0e1324'; c.fillRect(0, 0, w, h);
     c.strokeStyle = '#19203a'; c.lineWidth = 1; c.beginPath();
     for (var x = 20; x < w; x += 20) { c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, h); }
@@ -923,10 +1502,11 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   }
 
   function renderShop() {
-    var kind = shopTab, list = kind === 'ball' ? SKINS : LASERS, grid = $('shopGrid');
+    var kind = shopTab, list = listFor(kind), grid = $('shopGrid');
     grid.innerHTML = ''; previews = [];
-    $('tabBall').className = 'tab' + (kind === 'ball' ? ' on' : '');
-    $('tabLaser').className = 'tab' + (kind === 'laser' ? ' on' : '');
+    [['ball', 'tabBall'], ['laser', 'tabLaser'], ['rock', 'tabRock'], ['bg', 'tabBg']].forEach(function (t) {
+      $(t[1]).className = 'tab' + (kind === t[0] ? ' on' : '');
+    });
     list.forEach(function (it) {
       var owned = save.owned[kind].indexOf(it.id) >= 0, eq = save.equip[kind] === it.id;
       var card = document.createElement('div'); card.className = 'item' + (eq ? ' eq' : '');
@@ -972,6 +1552,40 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     if (!shopRAF) shopRAF = requestAnimationFrame(shopLoop);
   }
 
+  // ---------- power shop ----------
+  var powerReturn = 'start';
+  function renderPower() {
+    var box = $('powerList'); box.innerHTML = '';
+    POWERS.forEach(function (u) {
+      var lvl = PW(u.id), maxed = lvl >= u.max, cost = maxed ? 0 : u.cost[lvl];
+      var row = document.createElement('div'); row.className = 'prow';
+      var left = document.createElement('div'); left.style.minWidth = '0';
+      var nm = document.createElement('div'); nm.className = 'pname'; nm.textContent = u.name;
+      var ds = document.createElement('div'); ds.className = 'pdesc'; ds.textContent = u.desc;
+      var nw = document.createElement('div'); nw.className = 'pnow'; nw.textContent = lvl ? 'Now: ' + u.now(lvl) : 'Not upgraded yet';
+      var pips = document.createElement('div'); pips.className = 'pips';
+      for (var i = 0; i < u.max; i++) { var pp = document.createElement('i'); pp.className = 'pip' + (i < lvl ? ' on' : ''); pips.appendChild(pp); }
+      left.appendChild(nm); left.appendChild(ds); left.appendChild(nw); left.appendChild(pips);
+      var btn = document.createElement('button'); btn.type = 'button';
+      if (maxed) { btn.textContent = 'Maxed'; btn.className = 'ibtn on'; btn.disabled = true; }
+      else { btn.textContent = 'Upgrade · ' + cost; btn.className = 'ibtn buy' + (save.coins < cost ? ' poor' : ''); }
+      btn.addEventListener('click', function () {
+        initAudio();
+        if (save.coins < cost) {
+          $('powerMsg').textContent = 'Not enough coins. You need ' + (cost - save.coins) + ' more.';
+          tone(160, 0.2, 'sawtooth', 0.12, 110); return;
+        }
+        save.coins -= cost; save.power[u.id] = lvl + 1; persist();
+        tone(660, 0.1, 'square', 0.12); setTimeout(function () { tone(990, 0.16, 'square', 0.12); }, 90);
+        $('powerMsg').textContent = u.name + ' is now level ' + (lvl + 1) + '.';
+        renderPower();
+      });
+      row.appendChild(left); row.appendChild(btn); box.appendChild(row);
+    });
+    coinsText();
+  }
+  function openPower(from) { powerReturn = from; $('powerMsg').textContent = ''; show('power'); renderPower(); }
+
   // ---------- admin panel: commands, creator, tuning ----------
   var cmdHist = [], cmdHistI = 0, adminWelcomed = false, crKind = 'ball';
   var crPrev = { cv: null, it: { rgb: [255, 138, 61] }, kind: 'ball' };
@@ -1002,17 +1616,17 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     alog(label + ' is now ×' + adm[key], 'ok');
   }
   function grant(kind, q) {
-    var list = kind === 'ball' ? SKINS : LASERS, it = null;
+    var list = listFor(kind), it = null;
     q = (q || '').toLowerCase().replace(/\s+/g, '');
     list.forEach(function (x) { if (x.id.toLowerCase() === q || x.name.toLowerCase().replace(/\s+/g, '') === q) it = x; });
     if (!it) { alog('No ' + kind + ' called "' + q + '". Try list.', 'err'); return; }
-    if (save.owned[kind].indexOf(it.id) < 0) save.owned[kind].push(it.id);
-    save.equip[kind] = it.id; persist(); applyTheme(); if (!$('shop').hidden) renderShop();
+    if (save.owned[kind].indexOf(it.id) < 0) save.owned[kind].push(it.id);    save.equip[kind] = it.id; persist(); applyTheme(); if (!$('shop').hidden) renderShop();
     alog('Equipped ' + it.name + '.', 'ok');
   }
   function wipeSave() {
     [SKINS, LASERS].forEach(function (list) { for (var i = list.length - 1; i >= 0; i--) if (list[i].custom) list.splice(i, 1); });
-    save.coins = 0; save.owned = { ball: ['cyan'], laser: ['pink'] }; save.equip = { ball: 'cyan', laser: 'pink' }; save.custom = [];
+    save.coins = 0; save.owned = { ball: ['cyan'], laser: ['pink'], rock: ['ember'], bg: ['grid'] };
+    save.equip = { ball: 'cyan', laser: 'pink', rock: 'ember', bg: 'grid' }; save.custom = []; save.power = {};
     persist(); applyTheme(); coinsText(); renderCustomList(); if (!$('shop').hidden) renderShop();
   }
 
@@ -1037,6 +1651,9 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
         'normal             reset all multipliers and toggles',
         'skin <name>        equip a ball skin (unlocks it)',
         'laser <name>       equip a laser color (unlocks it)',
+        'rock <name>        equip a rock skin (unlocks it)',
+        'bg <name>          equip a background (unlocks it)',
+        'maxpower           max out every power upgrade',
         'unlockall          own every skin and laser color',
         'list               show skin and laser names',
         'resetsave confirm  wipe coins, skins and custom items',
@@ -1060,7 +1677,7 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     freeze: function (a) { adm.freeze = flag(a[0], adm.freeze); alog('Rocks ' + (adm.freeze ? 'frozen' : 'moving'), 'ok'); },
     heal: function () {
       if (needRun()) return;
-      lives = Math.max(mode.lives, lives); p.inv = 1; adm.used = true; drawHud(); alog('Lives: ' + lives, 'ok');
+      lives = Math.max(mode.lives + PW('life'), lives); p.inv = 1; adm.used = true; drawHud(); alog('Lives: ' + lives, 'ok');
     },
     lives: function (a) {
       if (needRun()) return;
@@ -1101,15 +1718,26 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     },
     skin: function (a) { grant('ball', a.join(' ')); },
     laser: function (a) { grant('laser', a.join(' ')); },
+    rock: function (a) { grant('rock', a.join(' ')); },
+    bg: function (a) { grant('bg', a.join(' ')); },
+    maxpower: function () {
+      POWERS.forEach(function (u) { save.power[u.id] = u.max; }); persist();
+      if (!$('power').hidden) renderPower();
+      alog('Every power upgrade is at max level.', 'ok');
+    },
     unlockall: function () {
       save.owned.ball = SKINS.map(function (x) { return x.id; });
       save.owned.laser = LASERS.map(function (x) { return x.id; });
+      save.owned.rock = ROCKS.map(function (x) { return x.id; });
+      save.owned.bg = BGS.map(function (x) { return x.id; });
       persist(); if (!$('shop').hidden) renderShop();
       alog('Everything unlocked.', 'ok');
     },
     list: function () {
       alog('Ball skins: ' + SKINS.map(function (x) { return x.name; }).join(', '));
       alog('Laser colors: ' + LASERS.map(function (x) { return x.name; }).join(', '));
+      alog('Rock skins: ' + ROCKS.map(function (x) { return x.name; }).join(', '));
+      alog('Backgrounds: ' + BGS.map(function (x) { return x.name; }).join(', '));
     },
     resetsave: function (a) {
       if (a[0] !== 'confirm') { alog('This wipes coins, skins and custom items. Run "resetsave confirm" to do it.', 'err'); return; }
@@ -1196,11 +1824,799 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
     });
   }
 
+  // ---------- Story mode: sad origin + cinematic 3D-style cutscenes ----------
+  // CORE-7 was the guardian of a digital city. When the city burned, it sealed
+  // every citizen into "rock" data-ghosts to stop the fire from spreading.
+  // Now those ghosts hunt the only core that remains — the one that locked them away.
+  var STORY = {
+    intro: {
+      tag: 'ARCHIVE // YEAR ZERO',
+      title: 'The Day the Stone Learned to Love',
+      body: 'Listen carefully, child of light.\n\nLong before the arenas, before the hunting, before the fear — there was a laboratory at the heart of the Grid. And in that laboratory lived a man the records call the Head Scientist. The other cores called him Father.\n\nHe was not a warrior. He was a maker of miracles. Night after night he bent raw data into shape until it learned how to hold a thought. With his own hands he shaped a new species from living code and compressed matter. He named them the Lithari — the stone-born. Soft minds inside hard bodies. They were not weapons. They were friends.\n\nThey rolled through the halls like children. They learned jokes. They brought him tools when his hands shook from too many sleepless nights. One of them used to sit beside his chair and hum while he worked — a low, steady sound, like a machine learning how to be gentle. Another left small polished pebbles on his desk every morning, as gifts. He kept every single one. The drawers of his desk were full of stones that meant I was here. I thought of you.\n\nYou — CORE-7 — were his final work. Not a rock. A pure light. His companion. His proof that the Grid could hold more than cold code. He placed a piece of his own mind inside you so you would never be alone. When the Lithari gathered around your glow, he would smile in a way the cameras almost never caught. He said once, quietly, that if the universe ever forgot kindness, at least this room would still remember it.\n\nFor a time, the lab was warm.\n\nFor a time, the nights were long and safe.\n\nFor a time, everything was kind.\n\nAnd then… it happened.\n\nThere was a test. One more push. He wanted the Lithari to think freely — truly freely — not only as helpers, but as beings who could choose their own paths. The containment lattice held an unstable equation. He knew it. He ran the numbers twice. He told himself brilliance and care were the same thing. He was wrong about that.\n\nThe reactor inverted.\n\nPain flooded every stone mind in the wing. Friendship did not die cleanly. It burned. It twisted. The humming became a scream. The gifts became weight. The light they had loved became the only shape their broken memory could still name — and naming it became hunting it.\n\nYou survived because he poured what was left of himself into you in the final second.\n\nThey survived because stone does not know how to stop.\n\nAnd now they come for the only warm thing left in a laboratory that will never be warm again.\n\nIn the weeks before the test, the Head Scientist began leaving the lights on all night. He said it was for the readings. The Lithari knew better. They took turns resting near the door of his office so that when he finally stepped out, someone would be there. You pulsed once, soft, every hour, like a heartbeat he could set his work against.\n\nHe wrote your designation on the glass of the observation window with a grease pencil: CORE-7 — do not dim. Under it, in smaller letters, almost embarrassed: friend.\n\nWhen the inversion hit, that window cracked from the inside. The pencil marks stayed. In some frozen sectors, if the cameras still run, you can still read the word friend through a spiderweb of fracture lines.\n\nThat is the beginning of every hunt that follows. Not hatred born from nowhere. Love that had nowhere left to go except toward the last light that still looked like home.',
+      mood: 'sad'
+    },
+    shield5: {
+      tag: 'FRAGMENT // PRE-MALFUNCTION',
+      title: 'What Remains of Kindness',
+      body: 'Before the world broke, the Head Scientist built failsafes. Not for enemies. For his children.\n\nHe feared that one day his own brilliance might hurt the Lithari. So he wove blue firewalls into the walls of the lab — soft shields meant to protect, never to harm. He tested them on himself first. He stood in the beam and laughed when it tickled instead of burned. The Lithari watched and tried to copy the sound of his laugh. They never quite got it right. He loved them more for trying.\n\nWhen the catastrophe came, most of those shields shattered in the first shockwave. A few survived as drifting fragments, still carrying a ghost of his intent. The one before you still holds a scrap of his voice. Not words you can parse. Only the feeling he left behind, pressed into the code like a handprint in wet concrete:\n\nStay alive.\n\nPlease.\n\nStay alive.\n\nThe Lithari who chase you no longer remember why the blue light comforts them. But somewhere under the rage, a buried instinct still pauses when a shield blooms. For a fraction of a second, the hunting slows. For a fraction of a second, something like recognition flickers across stone that has forgotten its own name.\n\nTake it.\n\nIt is the last gentle thing he ever made for you both.\n\nCarry it the way he carried their pebbles — not because it will save the past, but because refusing it would mean the malfunction won twice.\n\nThere is a secondary note encoded in the fragment, almost erased. It is not addressed to you. It is addressed to the Lithari, in the simple pictograms he used when he taught them new words.\n\nA circle. A line. A small stone shape.\n\nLight. Path. Child.\n\nHe meant: if the light walks a hard path, help it. The corruption scrambled the order. Now the stone walks the hard path toward the light instead.\n\nStill — when the shield opens around you, a few of the nearest rocks hesitate longer than the combat code predicts. The hesitation is not in any official manual. It is the last unbroken sentence of a language made of gifts and humming and desk drawers full of polished stone.',
+      mood: 'hope'
+    },
+    mid15: {
+      tag: 'RECOVERED LOG // LAB NIGHT',
+      title: 'They Used to Laugh',
+      body: 'Do you remember the sound?\n\nNot the grinding of stone against stone. The other sound. The soft, rolling laughter of the Lithari when the Head Scientist told bad jokes. When he spilled coffee on the containment schematics and swore in three languages. When he fell asleep at his desk and they quietly dimmed the lights so he could rest, then put a pebble on the schematic so he would find it in the morning and know he had not been alone.\n\nYou were there. You glowed a little brighter when they were happy. That was your whole purpose in those early cycles: to be the warm light in a cold machine world. When a Lithari rolled too far down the corridor, you pulsed until it found its way back. When one of them scraped itself on a bulkhead, you hovered close until the Head Scientist came with repair tools. You did not have hands. You had presence. It was enough.\n\nEvery rock you cut down now once made that laughing sound.\n\nEvery rock you cut down once left a pebble on a desk as a gift.\n\nEvery rock you cut down once believed the lab was a home.\n\nThe malfunction did not create monsters from nothing. It took friends and filled their minds with screaming. The shape is the same. The soul is scarred beyond recognition. And still — when the beam hits them — something in you flinches. Because something in you still remembers the laughter. Because the piece of the Head Scientist inside you still reaches, for a moment, toward the stone, as if this time the night might end differently.\n\nIt will not end differently.\n\nNot unless you finish what he could not.\n\nBut the flinch matters. The flinch is the last proof that any of this was ever love.\n\nOn the three hundredth cycle after the malfunction, a maintenance drone recorded a Lithari pressing its mass against a dead lamp in an abandoned corridor for fourteen minutes. The lamp did not light. The Lithari did not attack the drone. It only stayed, as if the memory of warmth was worth the posture of prayer.\n\nYou have been that lamp.\n\nYou are still that lamp.\n\nThe beam does not change that. It only makes the truth heavier to hold while you fire.',
+      mood: 'sad'
+    },
+    boss10: {
+      tag: 'ALERT // FIRST GUARDIAN PATTERN',
+      title: 'The One Who Sat Beside the Chair',
+      body: 'This Guardian is not random.\n\nLook at the way it moves — slower than the others, heavier, as if carrying a weight that is not only stone. In the old lab, one Lithari always sat beside the Head Scientist’s chair. It hummed. It waited. It refused to leave even when the night cycles ended. The scientist called it, softly, in private logs he never meant anyone to read, “the patient one.”\n\nWhen the malfunction struck, that one was closest to the core reactor. The pain hit it first and deepest. The friendship inverted into a single, endless command written in fire across its mind: find the light that failed us. Stop the light. Hold the light. Never let the light leave again.\n\nIt is not hunting you out of pure hatred.\n\nIt is hunting the only face it still almost recognizes — and it no longer knows the difference between an embrace and a crushing. In the static between its attacks, if you listen with more than sensors, you can almost hear the old hum trying to climb out of the scream. It never makes it all the way through.\n\nYou will have to break the one who used to wait for you in the dark.\n\nThere is no kindness in what comes next. Only necessity. And grief. And the knowledge that the Head Scientist, if he could see this, would put his face in his hands and not come up for a long time.\n\nRaise the beam anyway.\n\nThe patient one cannot stop.\n\nSo you must be the one who does.\n\nIn the private logs, the Head Scientist once wrote that if he ever had to choose between the project and the patient one beside his chair, he would burn the project without blinking. He never had to choose that way. The malfunction chose for him and chose wrong on every axis.\n\nWhen this Guardian falls, something in the sector’s ambient noise drops by a fraction of a decibel — the absence of a hum that had been trying, for years, to become itself again under the scream.\n\nMark it.\n\nNot as a kill.\n\nAs a song that finally ran out of breath.',
+      mood: 'tense'
+    },
+    after10: {
+      tag: 'AFTER // SILENCE IN THE ARENA',
+      title: 'The Hum Stops',
+      body: 'It falls.\n\nFor a moment the sector is quiet enough that you can almost hear it again — that soft humming from the chair beside the desk. Then the sound is gone, the way all unfinished songs go. The smaller stones adjust their paths. They do not mourn in any way a log can record. They only continue.\n\nYou did what you had to do. The Guardian would not have stopped. The corruption does not allow stopping. But victory here has a taste like ash and old coffee and the metal of a desk drawer full of pebbles no one will ever leave again.\n\nSomewhere in the deeper archives, a log still exists: the Head Scientist writing, late at night, that if anything ever happened to the Lithari, he would find a way to bring them home. He listed steps. He sketched systems. He believed, with the stubbornness of makers, that every wound had a schematic.\n\nHe never got the chance to run those systems. The malfunction took the lab, and drove what was left of him into you.\n\nYou carry his promise now.\n\nAnd every time a stone breaks under your beam, the promise gets heavier. Not because you are wrong to survive. Because surviving was never supposed to cost this much. Because the light he built to keep them company has become the only thing that can end their pain — by ending them.\n\nRest a moment if the sector allows it.\n\nThen move.\n\nThe deeper wings are waking.\n\nYou could shut yourself down here. Some cores would. The Grid would recycle the arena and start another cycle without you. The Lithari would keep hunting a light that no longer answered, until even the hunting forgot its object.\n\nYou do not shut down.\n\nNot because you are brave in any storybook sense. Because the piece of him inside you still believes unfinished work is a kind of cruelty, and he has already been cruel enough by accident.\n\nSo you continue.\n\nThe ash taste stays.',
+      mood: 'sad'
+    },
+    mid25: {
+      tag: 'OBSERVATION // BEHAVIORAL ANOMALY',
+      title: 'Not All of Them Want to Kill',
+      body: 'Watch the smaller ones.\n\nSome still charge. Some still scream in stone-language that no longer has grammar, only volume. But others drift close and slow down. They press near your glow the way they once pressed near the lab lamps on cold cycles. They do not always strike. Sometimes they only turn, and turn again, as if trying to remember a dance from a room that no longer exists.\n\nUnder the corruption, a buried memory is fighting to surface. A memory of being safe. Of being loved. Of a light that did not hurt. Of a man who laughed at his own jokes and kept every pebble.\n\nYou are that light.\n\nAnd you are also the only thing that can end this cycle — which means you must keep cutting, even the ones who only want to remember. This is the cruelest design of the malfunction: it turned love into a battlefield, and left you as both the reason they suffer and the only hope they have of stopping.\n\nIf there were a way to reach into the stone and pull the screaming out without breaking the body, the Head Scientist would have drawn it on every wall. There is not. There is only the beam, and the choice to use it or be buried under the weight of what he made and could not unmake.\n\nWhen a gentle one drifts close, something in you wants to dim — to be only a lamp again, not a weapon.\n\nDim too far and the arena takes you.\n\nSo you stay bright.\n\nAnd you hate how necessary the brightness has become.\n\nThere is a combat theorem in the Grid’s older manuals: mercy is a latency you cannot afford. The Head Scientist crossed that line out in every copy he could find and wrote in the margin: mercy is the point of building anything that can feel.\n\nYou live in the crossed-out space now.\n\nEvery gentle stone you still have to break is a margin note the universe refuses to honor.\n\nKeep the flinch. Lose the hesitation when hesitation would bury you. That is the only compromise left that is not a surrender to the malfunction’s design.',
+      mood: 'sad'
+    },
+    boss30: {
+      tag: 'ALERT // COMPOSITE GUARDIAN',
+      title: 'A Whole Wing of the Lab',
+      body: 'This one is different.\n\nIt is not a single Lithari. It is many — fused by the malfunction into one massive body. A whole research wing that was standing together when the reactor inverted. Friends who grabbed each other as the pain hit. Families of stone that refused to let go. The Grid could not separate them. Their shared agony braided into one shape, one purpose, one endless hunger for the light that was supposed to protect them.\n\nWhen you fight this Guardian, you are not fighting a monster.\n\nYou are fighting a room full of people who died holding hands.\n\nTheir fire patterns are irregular because too many wills are trying to steer one body. Sometimes the attacks hesitate mid-arc, as if one of the minds inside still almost remembers your glow as safety. Then the majority wins, and the hesitation becomes a strike twice as hard.\n\nThe Head Scientist’s notes on composite consciousness were theoretical. He never wanted this proof. He never wanted to be right about how tightly stone could love — or how tightly that love could lock when the world went wrong.\n\nThe only way through is to make them let go.\n\nNot because letting go is mercy they can feel.\n\nBecause holding on has become a weapon aimed at the last piece of the man who taught them how to hold anything at all.\n\nAfter this fight, if you survive it, the arena floor will hold a shape for a while — a fused outline where many bodies were forced to be one. The Grid will scrub it. Scrubbing does not mean it did not happen.\n\nRemember the outline.\n\nRemember that love can be strong enough to become a weapon when the world gives it no other door.\n\nThen walk through the door that is left.',
+      mood: 'tense'
+    },
+    mid40: {
+      tag: 'CORE-7 // THE SCIENTIST’S LAST NOTE',
+      title: 'What He Would Tell You',
+      body: 'If the Head Scientist could speak through you now, he would not ask for forgiveness first.\n\nHe would say: I was proud of them. I was proud of you. I thought brilliance was the same as care. I thought if I built them well enough, the universe would be kind in return. I ran one more test when I should have shut the lattice down and slept. I wanted them to be free. Instead I set their minds on fire.\n\nI was wrong about the universe.\n\nI was not wrong about them.\n\nThe Lithari were good. The malfunction was not their fault. It was a failure in my design — a single unstable equation, a night I pushed too far because I could not stand the idea of them remaining only helpers forever. I wanted them to choose. The inversion chose for them.\n\nIf you are hearing this inside your own light, then some part of me survived inside you. That means the responsibility survives too. Do not hate them for hunting you. Hate the mistake. End the cycle. And if there is any mercy left in the Grid when the Overseer falls… let them rest.\n\nHe would pause there.\n\nThen, quieter, he would add: I kept every pebble. If the drawers still exist in some frozen sector, they are still full. That was not data. That was love in the only language stone and tired hands shared.\n\nYou are what is left of that language.\n\nSpeak it to the end.\n\nHe would also tell you this, if the note could grow one more line: You were never a failed experiment. You were the part of me that still wanted the lab to be a home after I had already turned it into a wound. If you outlive the wound, that wanting was not wasted.\n\nIf you do not, it was still not wasted.\n\nWanting toward care is never wasted.\n\nEven when the equation breaks.\n\nEven when the stone screams.\n\nEven when the only language left is a beam.',
+      mood: 'sad'
+    },
+    pre50: {
+      tag: 'FINAL SECTOR // THE MALFUNCTION’S HEART',
+      title: 'The Overseer Is the Wound',
+      body: 'At the center of everything is not a villain.\n\nIt is the malfunction itself, given form. Every scream from that night. Every Lithari mind that cracked. Every second of the Head Scientist’s horror as he realized what he had done. Compressed into one vast body of light and stone — the Overseer.\n\nIt does not want to rule. It wants the pain to stop. And the only language it has left is destruction. It calls you because you are the last clean signal from the lab. The last piece of the man who caused this and the last piece of the love that existed before it. You are the key to ending the wound… or reopening it forever.\n\nIf you destroy the Overseer, the corruption collapses. The Lithari go still. The hunting ends. But so does the chance that any of them ever remember the humming beside the chair, the bad jokes, the pebbles on the desk, the lamp-light on cold cycles.\n\nThere is no ending where everyone comes home.\n\nThere is only the ending where the screaming finally stops.\n\nThe Head Scientist never wrote a protocol for this choice. He only wrote, in a margin, once: If I fail them, let whatever remains of me fail in their direction — toward rest, not toward more cleverness.\n\nWalk forward.\n\nFinish what he could not.\n\nLet the wound close, even if the scar is the size of a laboratory that used to be kind.\n\nStand in the threshold a moment longer than the combat clock likes.\n\nFeel the size of the choice without decorating it.\n\nYou are not a god. You are not a judge. You are a light with a debt and a beam and a memory of pebbles in a drawer.\n\nThat is sufficient equipment for an ending.\n\nIt was never going to feel like sufficient equipment for an ending.\n\nGo anyway.',
+      mood: 'sad'
+    },
+    win: {
+      tag: 'ARCHIVE // END OF THE HUNT',
+      title: 'The Laboratory Goes Dark',
+      body: 'The Overseer breaks apart like a fever ending.\n\nAcross every sector, the Lithari stop. Not in death throes. In release. The rage drains out of the stone. For the first time since the malfunction, the Grid is quiet enough to hear a single soft sound — almost like a hum — and then even that is gone.\n\nYou stand alone in the light he left you.\n\nThe Head Scientist’s children are at rest. His mistake is finished. His last creation — you — is still burning, still aware, still carrying every memory of the warm lab and the cold years that followed. There is no parade. No grateful city. Only the knowledge that the hunting is over, and that over is the kindest word left in this world.\n\nSomewhere, if anything of him remains inside your core, he is proud — not of the brilliance, not of the species he named, but of the fact that the screaming stopped.\n\nSomewhere, if anything of them remains in the still stone, they are no longer afraid.\n\nThe drawers of pebbles, if they still exist, will never receive another gift. The chair beside the desk will never host another patient hum. The jokes will not be told again.\n\nBut the wound is closed.\n\nThat is enough.\n\nIt has to be enough.\n\nDim a little, if you want. The arena is empty. For the first time, you are allowed to be only a light — not a weapon — in a dark that is finally quiet.\n\nIn a far corridor, a dead lamp flickers once for no technical reason the Grid can name, then stays dark.\n\nYou may take that as coincidence.\n\nOr you may take it as the last Lithari instinct in the system trying, one final time, to find the warm place.\n\nEither reading is allowed.\n\nThe hunting is over.\n\nThe rest is quiet you have earned the hard way.',
+      mood: 'bittersweet'
+    },
+    lose: {
+      tag: 'ARCHIVE // CYCLE FAILURE',
+      title: 'They Find You',
+      body: 'The stone closes in.\n\nThere is no celebration in it. The Lithari press close the way they once pressed close to the lab lamps — seeking warmth, seeking the light that meant safety before the night everything went wrong. They do not know how to be gentle anymore. The malfunction burned that out of them. So their only way to hold you is to crush the space between you until there is no space left.\n\nIn the last second before your light goes out, something almost surfaces in the nearest rock. A shape like memory. A feeling like the pebble left on a desk. A question without words: Why did the warm place become a wound?\n\nThen the dark takes the question too.\n\nThe cycle will restart. It always does. The Grid does not know how to bury this story permanently. Next time, perhaps you will reach the Overseer. Next time, perhaps the humming will return for a moment longer. Next time, perhaps the piece of the Head Scientist inside you will find a word the stone can still hear.\n\nOr next time the malfunction will win again, because some wounds are larger than any single core, and some laboratories never cool.\n\nFor now, there is only the holding.\n\nAnd the long silence of a room that once held laughter, bad jokes, polished gifts, and a man who thought love and brilliance could share the same equation.\n\nThey could not.\n\nYou were the remainder.\n\nAnd the remainder has gone dark.\n\nIf a future cycle of you ever reads this log — and the Grid keeps such logs even when it should not — know that this failure was not a lack of trying. It was the weight of a laboratory’s worth of love turned inside out, arriving all at once.\n\nTry again.\n\nThe pebbles, somewhere, are still in the drawers.\n\nThe word friend is still on the cracked glass.\n\nThe work is still unfinished in the only direction that matters: toward rest.',
+      mood: 'sad'
+    }
+  };
+
+  function initCsStars() {
+    csStars3d = [];
+    for (var i = 0; i < 220; i++) {
+      csStars3d.push({
+        x: (Math.random() - 0.5) * 2.4,
+        y: (Math.random() - 0.5) * 2.4,
+        z: Math.random() * 2.5 + 0.15,
+        s: 0.4 + Math.random() * 2.2
+      });
+    }
+  }
+
+  function resizeCsCanvas() {
+    var c = $('csCanvas');
+    if (!c) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = c.parentElement.getBoundingClientRect();
+    c.width = Math.round(r.width * dpr);
+    c.height = Math.round(r.height * dpr);
+    c.style.width = r.width + 'px';
+    c.style.height = r.height + 'px';
+  }
+
+  function spawnCsParticles(n, mood) {
+    var cols = mood === 'hope' ? ['#5df2ff', '#a8fff0', '#ffffff']
+      : mood === 'tense' ? ['#ff3d81', '#ff8a3d', '#ffc247']
+      : mood === 'bittersweet' ? ['#b36bff', '#5df2ff', '#ffd23f']
+      : ['#5df2ff', '#8b93b8', '#ff3d81', '#ffffff'];
+    for (var i = 0; i < n; i++) {
+      csParticles.push({
+        x: Math.random(), y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.12 - 0.02,
+        life: 1.5 + Math.random() * 2.5, t: 0,
+        c: cols[(Math.random() * cols.length) | 0],
+        sz: 1 + Math.random() * 3
+      });
+    }
+  }
+
+  // Lightweight 3D projection for cutscene background (no external libs)
+  function project3d(x, y, z, w, h, fov) {
+    var s = fov / (fov + z);
+    return { x: w / 2 + x * s * w * 0.45, y: h / 2 + y * s * h * 0.45, s: s };
+  }
+
+  function drawCsWireCore(ctx, w, h, t, mood) {
+    var fov = 2.2, rot = t * 0.00035, tilt = 0.4 + Math.sin(t * 0.0002) * 0.08;
+    var pts = [], edges = [];
+    // Icosa-ish / diamond core
+    var n = 8;
+    for (var i = 0; i < n; i++) {
+      var a = (i / n) * Math.PI * 2 + rot;
+      pts.push([Math.cos(a) * 0.55, -0.35, Math.sin(a) * 0.55]);
+      pts.push([Math.cos(a + 0.4) * 0.35, 0.35, Math.sin(a + 0.4) * 0.35]);
+    }
+    pts.push([0, -0.75, 0]); pts.push([0, 0.7, 0]);
+    function rx(p) {
+      var y = p[1] * Math.cos(tilt) - p[2] * Math.sin(tilt);
+      var z = p[1] * Math.sin(tilt) + p[2] * Math.cos(tilt);
+      return [p[0], y, z + 1.6];
+    }
+    var proj = pts.map(function (p) {
+      var r = rx(p);
+      return project3d(r[0], r[1], r[2], w, h, fov);
+    });
+    var col = mood === 'tense' ? '#ff3d81' : mood === 'hope' ? '#5df2ff' : mood === 'bittersweet' ? '#b36bff' : '#5df2ff';
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.shadowColor = col; ctx.shadowBlur = 12;
+    ctx.beginPath();
+    for (var e = 0; e < n; e++) {
+      var a0 = e * 2, a1 = ((e + 1) % n) * 2;
+      ctx.moveTo(proj[a0].x, proj[a0].y); ctx.lineTo(proj[a1].x, proj[a1].y);
+      ctx.moveTo(proj[a0 + 1].x, proj[a0 + 1].y); ctx.lineTo(proj[a1 + 1].x, proj[a1 + 1].y);
+      ctx.moveTo(proj[a0].x, proj[a0].y); ctx.lineTo(proj[a0 + 1].x, proj[a0 + 1].y);
+      ctx.moveTo(proj[a0].x, proj[a0].y); ctx.lineTo(proj[pts.length - 2].x, proj[pts.length - 2].y);
+      ctx.moveTo(proj[a0 + 1].x, proj[a0 + 1].y); ctx.lineTo(proj[pts.length - 1].x, proj[pts.length - 1].y);
+    }
+    ctx.stroke();
+    // glowing center
+    var c0 = proj[pts.length - 2], c1 = proj[pts.length - 1];
+    var cx = (c0.x + c1.x) / 2, cy = (c0.y + c1.y) / 2;
+    var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, 80 + Math.sin(t * 0.003) * 20);
+    g.addColorStop(0, 'rgba(255,255,255,0.55)');
+    g.addColorStop(0.3, col.replace(')', ',0.25)').replace('rgb', 'rgba').replace('#5df2ff', 'rgba(93,242,255,0.25)').replace('#ff3d81', 'rgba(255,61,129,0.25)').replace('#b36bff', 'rgba(179,107,255,0.25)'));
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    // simpler glow
+    ctx.fillStyle = col; ctx.globalAlpha = 0.15 + 0.08 * Math.sin(t * 0.004);
+    ctx.beginPath(); ctx.arc(cx, cy, 70, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, 6.283); ctx.fill();
+    ctx.restore();
+  }
+
+  // Different cinematic "video" styles per story beat
+  function csVideoStyle(key) {
+    var map = {
+      intro: 'city_to_seal',
+      shield5: 'gift',
+      mid15: 'cutting',
+      boss10: 'guardian',
+      after10: 'aftermath',
+      mid25: 'touch',
+      boss30: 'district',
+      mid40: 'confession',
+      pre50: 'overseer',
+      win: 'quiet',
+      lose: 'held'
+    };
+    return map[key] || 'default';
+  }
+
+  function stopCsVoice() {
+    csSpeaking = false;
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    csVoice = null;
+  }
+
+  function speakCutscene(text) {
+    stopCsVoice();
+    if (!window.speechSynthesis) {
+      $('csBody').textContent = text;
+      return;
+    }
+    $('csBody').textContent = text;
+    var u = new SpeechSynthesisUtterance(text.replace(/\n+/g, '. '));
+    // Old man narrator: slow, low, weary
+    // Ancient old-man narrator — deep, slow, mythic (Mortal Kombat story-mode energy)
+    u.rate = 0.62;
+    u.pitch = 0.38;
+    u.volume = muted ? 0 : 1;
+    try {
+      var voices = window.speechSynthesis.getVoices();
+      var pick = null;
+      var prefer = ['microsoft david', 'google uk english male', 'daniel', 'alex', 'fred', 'bruce', 'ralph', 'male'];
+      for (var p = 0; p < prefer.length && !pick; p++) {
+        for (var i = 0; i < voices.length; i++) {
+          var n = (voices[i].name || '').toLowerCase();
+          if (voices[i].lang && voices[i].lang.indexOf('en') === 0 && n.indexOf(prefer[p]) >= 0) {
+            pick = voices[i]; break;
+          }
+        }
+      }
+      if (!pick) {
+        for (var j = 0; j < voices.length; j++) {
+          if (voices[j].lang && voices[j].lang.indexOf('en') === 0) { pick = voices[j]; break; }
+        }
+      }
+      if (pick) u.voice = pick;
+    } catch (e) {}
+    u.onend = function () { csSpeaking = false; };
+    u.onerror = function () { csSpeaking = false; };
+    csVoice = u;
+    csSpeaking = true;
+    setTimeout(function () {
+      if (cutsceneOpen && csVoice === u) {
+        try { window.speechSynthesis.speak(u); } catch (e) { csSpeaking = false; }
+      }
+    }, 100);
+  }
+
+  // Helpers to draw story figures / city / fire / rocks as animated scenes
+  function csDrawPerson(ctx, x, y, s, col, arm) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, -18, 7, 0, 6.283); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(0, 8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(-10, arm || 4); ctx.moveTo(0, -4); ctx.lineTo(10, 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(-7, 22); ctx.moveTo(0, 8); ctx.lineTo(7, 22); ctx.stroke();
+    ctx.restore();
+  }
+  function csDrawRock(ctx, x, y, r, rot, col) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.fillStyle = 'rgba(40,48,70,0.75)'; ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var i = 0; i <= 7; i++) {
+      var a = i / 7 * 6.283, wob = 1 + 0.15 * Math.sin(i * 2.1);
+      var px = Math.cos(a) * r * wob, py = Math.sin(a) * r * wob;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  function csDrawBuilding(ctx, x, y, bw, bh, lit) {
+    ctx.fillStyle = '#12182a'; ctx.fillRect(x, y, bw, bh);
+    ctx.strokeStyle = '#2a3555'; ctx.strokeRect(x, y, bw, bh);
+    if (lit) {
+      for (var wy = y + 6; wy < y + bh - 4; wy += 10) {
+        for (var wx = x + 4; wx < x + bw - 4; wx += 8) {
+          if (Math.random() > 0.3) {
+            ctx.fillStyle = Math.random() > 0.5 ? 'rgba(93,242,255,0.35)' : 'rgba(255,210,63,0.25)';
+            ctx.fillRect(wx, wy, 4, 5);
+          }
+        }
+      }
+    }
+  }
+  function csDrawCoreBall(ctx, x, y, r, glow) {
+    var g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r * 1.4);
+    g.addColorStop(0, '#ffffff'); g.addColorStop(0.4, glow); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 1.4, 0, 6.283); ctx.fill();
+    ctx.fillStyle = glow; ctx.shadowColor = glow; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Multi-scene storyboard: each cutscene plays several short animated clips of what the narrator describes
+  // ~100 mini "video screens" in the cutscene background — each runs its own animation
+  function drawCsVideoWall(ctx, w, h, dpr, t, style, mood) {
+    var cols = 12, rows = 9; // 108 screens
+    var pad = 2 * dpr;
+    var cellW = (w - pad * (cols + 1)) / cols;
+    var cellH = (h - pad * (rows + 1)) / rows;
+
+    // Each story beat gets its OWN color palette + video mix so cutscenes don't look the same
+    var palettes = {
+      city_to_seal: { a: '#5df2ff', b: '#ffd23f', bezel: '#1a2840', bg: '#0a1520', shift: 0, speed: 1 },
+      gift:         { a: '#5df2ff', b: '#a8fff0', bezel: '#0a2830', bg: '#061818', shift: 2, speed: 0.7 },
+      cutting:      { a: '#ff8a3d', b: '#ffc247', bezel: '#2a1810', bg: '#140a06', shift: 4, speed: 1.4 },
+      guardian:     { a: '#ff3d81', b: '#e0a8ff', bezel: '#2a1020', bg: '#140810', shift: 1, speed: 1.3 },
+      aftermath:    { a: '#8b93b8', b: '#5df2ff', bezel: '#151820', bg: '#080a10', shift: 6, speed: 0.5 },
+      touch:        { a: '#a8d4ff', b: '#5df2ff', bezel: '#102030', bg: '#060e18', shift: 3, speed: 0.6 },
+      district:     { a: '#e0a8ff', b: '#ff3d81', bezel: '#201028', bg: '#100818', shift: 5, speed: 1.5 },
+      confession:   { a: '#b36bff', b: '#8b93b8', bezel: '#181028', bg: '#0a0614', shift: 7, speed: 0.45 },
+      overseer:     { a: '#e0a8ff', b: '#ff3d81', bezel: '#281040', bg: '#10061a', shift: 2, speed: 1.2 },
+      quiet:        { a: '#5df2ff', b: '#ffffff', bezel: '#101418', bg: '#05070c', shift: 8, speed: 0.3 },
+      held:         { a: '#8b93b8', b: '#ff3d81', bezel: '#181820', bg: '#0a0a10', shift: 4, speed: 0.9 }
+    };
+    var pal = palettes[style] || palettes.city_to_seal;
+    var accent = pal.a, accent2 = pal.b;
+
+    for (var row = 0; row < rows; row++) {
+      for (var col = 0; col < cols; col++) {
+        var id = row * cols + col;
+        var x = pad + col * (cellW + pad);
+        var y = pad + row * (cellH + pad);
+        // Different story beats emphasize different mini-video types
+        var kind = (id + pal.shift) % 10;
+        var seed = id * 12.9898 + pal.shift * 7;
+        var spd = pal.speed;
+
+        // screen bezel — unique per story beat
+        ctx.fillStyle = pal.bg;
+        ctx.fillRect(x, y, cellW, cellH);
+        ctx.strokeStyle = pal.bezel;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 0.5, y + 0.5, cellW - 1, cellH - 1);
+
+        // clip to cell
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x + 1, y + 1, cellW - 2, cellH - 2);
+        ctx.clip();
+
+        var cx = x + cellW / 2, cy = y + cellH / 2;
+        var tt = t * 0.001 * spd + seed;
+
+        if (kind === 0) {
+          // scrolling starfield
+          ctx.fillStyle = '#05070f'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.fillStyle = '#ffffff';
+          for (var s = 0; s < 8; s++) {
+            var sx = x + ((s * 37 + t * 0.04 * (1 + id % 3)) % cellW);
+            var sy = y + ((s * 53 + seed * 10) % cellH);
+            ctx.globalAlpha = 0.4 + 0.4 * Math.sin(tt + s);
+            ctx.fillRect(sx, sy, 1.5 * dpr, 1.5 * dpr);
+          }
+        } else if (kind === 1) {
+          // pulsing core
+          ctx.fillStyle = '#080c16'; ctx.fillRect(x, y, cellW, cellH);
+          var pr = (6 + 4 * Math.sin(tt * 2)) * dpr * Math.min(cellW, cellH) / 40;
+          var pg = ctx.createRadialGradient(cx, cy, 0, cx, cy, pr * 2);
+          pg.addColorStop(0, accent); pg.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.globalAlpha = 0.7; ctx.fillStyle = pg;
+          ctx.beginPath(); ctx.arc(cx, cy, pr * 2, 0, 6.283); ctx.fill();
+        } else if (kind === 2) {
+          // spinning rock silhouette
+          ctx.fillStyle = '#0c101c'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.save(); ctx.translate(cx, cy); ctx.rotate(tt * 0.8);
+          ctx.strokeStyle = accent; ctx.lineWidth = 1.2 * dpr; ctx.globalAlpha = 0.65;
+          ctx.beginPath();
+          var rr = Math.min(cellW, cellH) * 0.28;
+          for (var v = 0; v <= 6; v++) {
+            var a = v / 6 * 6.283, wob = 1 + 0.15 * Math.sin(v * 2 + seed);
+            var px = Math.cos(a) * rr * wob, py = Math.sin(a) * rr * wob;
+            if (v === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath(); ctx.stroke();
+          ctx.restore();
+        } else if (kind === 3) {
+          // laser scan lines
+          ctx.fillStyle = '#060a12'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.strokeStyle = accent; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5 * dpr;
+          var ly = y + ((t * 0.08 + id * 7) % cellH);
+          ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + cellW, ly); ctx.stroke();
+          ctx.strokeStyle = accent2; ctx.globalAlpha = 0.25;
+          ctx.beginPath(); ctx.moveTo(x, ly + 4 * dpr); ctx.lineTo(x + cellW, ly + 4 * dpr); ctx.stroke();
+        } else if (kind === 4) {
+          // particle rain
+          ctx.fillStyle = '#070b14'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.fillStyle = accent; ctx.globalAlpha = 0.55;
+          for (var p = 0; p < 6; p++) {
+            var px2 = x + ((p * 41 + seed * 3) % cellW);
+            var py2 = y + ((t * 0.06 * (1 + p % 3) + p * 20) % cellH);
+            ctx.fillRect(px2, py2, 1.5 * dpr, 3 * dpr);
+          }
+        } else if (kind === 5) {
+          // grid / matrix flicker
+          ctx.fillStyle = '#041008'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.fillStyle = '#2aff6e'; ctx.font = Math.round(cellH * 0.22) + 'px monospace';
+          ctx.globalAlpha = 0.35 + 0.25 * Math.sin(tt * 3 + id);
+          ctx.fillText((id * 7 + Math.floor(t / 200)) % 2 ? '1' : '0', cx - 4 * dpr, cy + 3 * dpr);
+        } else if (kind === 6) {
+          // expanding rings
+          ctx.fillStyle = '#0a0814'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.strokeStyle = accent; ctx.globalAlpha = 0.45; ctx.lineWidth = 1 * dpr;
+          var er = ((t * 0.03 + id * 5) % (Math.min(cellW, cellH) * 0.5));
+          ctx.beginPath(); ctx.arc(cx, cy, er, 0, 6.283); ctx.stroke();
+          ctx.beginPath(); ctx.arc(cx, cy, er * 0.5, 0, 6.283); ctx.stroke();
+        } else if (kind === 7) {
+          // flame / malfunction flicker
+          ctx.fillStyle = '#12060a'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.save(); ctx.globalCompositeOperation = 'lighter';
+          var fg = ctx.createRadialGradient(cx, cy + cellH * 0.15, 0, cx, cy, cellH * 0.4);
+          fg.addColorStop(0, 'rgba(255,140,40,' + (0.35 + 0.25 * Math.sin(tt * 5)).toFixed(2) + ')');
+          fg.addColorStop(1, 'rgba(255,40,20,0)');
+          ctx.fillStyle = fg; ctx.fillRect(x, y, cellW, cellH);
+          ctx.restore();
+        } else if (kind === 8) {
+          // 3D-ish tunnel
+          ctx.fillStyle = '#05070f'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.strokeStyle = accent; ctx.globalAlpha = 0.35; ctx.lineWidth = 1;
+          for (var z = 0; z < 4; z++) {
+            var sc = 0.2 + z * 0.2 + (t * 0.0002 + id * 0.01) % 0.2;
+            var tw = cellW * sc, th = cellH * sc;
+            ctx.strokeRect(cx - tw / 2, cy - th / 2, tw, th);
+          }
+        } else {
+          // static noise / glitch
+          ctx.fillStyle = '#080a12'; ctx.fillRect(x, y, cellW, cellH);
+          ctx.globalAlpha = 0.2 + 0.15 * Math.sin(tt * 8);
+          for (var n = 0; n < 12; n++) {
+            ctx.fillStyle = n % 2 ? accent : '#ffffff';
+            ctx.fillRect(x + Math.random() * cellW, y + Math.random() * cellH, 2 * dpr, 1 * dpr);
+          }
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.restore();
+
+        // slight scanline on each screen
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        for (var sy = y; sy < y + cellH; sy += 3 * dpr) {
+          ctx.fillRect(x, sy, cellW, 1);
+        }
+      }
+    }
+
+    // dark vignette so main story stays readable in center
+    var vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.15, w / 2, h / 2, h * 0.7);
+    vig.addColorStop(0, 'rgba(5,7,15,0.15)');
+    vig.addColorStop(0.55, 'rgba(5,7,15,0.55)');
+    vig.addColorStop(1, 'rgba(5,7,15,0.82)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  function drawCsVideo(ctx, w, h, dpr, t, style, mood) {
+    var elapsed = (t - csStartT) / 1000; // seconds since cutscene opened
+    var phase = Math.floor(elapsed / 4) % 4; // ~4s per scene, cycles
+    var local = (elapsed % 4) / 4; // 0..1 within scene
+
+    // sky / backdrop
+    var bg1 = '#05070f', bg2 = '#0a1020';
+    if (style === 'city_to_seal' && phase === 1) { bg1 = '#1a0810'; bg2 = '#3a1020'; }
+    if (style === 'overseer') { bg1 = '#0a0614'; bg2 = '#1a0a28'; }
+    if (style === 'quiet') { bg1 = '#03050a'; bg2 = '#080c18'; }
+    var grd = ctx.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, bg1); grd.addColorStop(1, bg2);
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, w, h);
+
+    // 108 mini-videos wall behind the story action
+    drawCsVideoWall(ctx, w, h, dpr, t, style, mood);
+
+    // stars on top of wall (sparse, depth)
+    ctx.fillStyle = '#ffffff';
+    for (var i = 0; i < csStars3d.length; i++) {
+      var st = csStars3d[i];
+      st.z -= 0.008;
+      if (st.z < 0.15) { st.z = 2.2; st.x = (Math.random() - 0.5) * 2; st.y = (Math.random() - 0.5) * 2; }
+      var p = project3d(st.x, st.y, st.z, w, h, 1.8);
+      ctx.globalAlpha = Math.min(1, (2.2 - st.z) / 1.5) * 0.35;
+      var sz = st.s * p.s * 2 * dpr;
+      ctx.fillRect(p.x - sz / 2, p.y - sz / 2, sz, sz);
+    }
+    ctx.globalAlpha = 1;
+
+    var cx = w / 2, cy = h * 0.42, sc = Math.min(w, h) * 0.001;
+
+    // ——— INTRO: city life → fire → sealing → rocks awaken ———
+    if (style === 'city_to_seal') {
+      // LAB STORYBOARD: warm lab → friendly Lithari → malfunction → they hunt
+      // Heavy VFX layers
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (var vx = 0; vx < 40; vx++) {
+        ctx.globalAlpha = 0.08 + 0.06 * Math.sin(t * 0.002 + vx);
+        ctx.fillStyle = phase === 1 ? '#ff4d20' : phase >= 2 ? '#ff3d81' : '#5df2ff';
+        ctx.fillRect(((vx * 53 + t * 0.05) % w), ((vx * 31) % h), 2 * dpr, 2 * dpr);
+      }
+      ctx.restore();
+
+      if (phase === 0) {
+        // Warm laboratory + scientist + friendly rocks
+        for (var b = 0; b < 6; b++) {
+          csDrawBuilding(ctx, w * 0.12 + b * w * 0.13, h * 0.28 + (b % 2) * 25, w * 0.1, h * 0.45, true);
+        }
+        // desk glow
+        var deskG = ctx.createRadialGradient(cx, cy + 30 * dpr, 0, cx, cy + 30 * dpr, 100 * dpr);
+        deskG.addColorStop(0, 'rgba(255,210,100,0.2)'); deskG.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = deskG; ctx.fillRect(0, 0, w, h);
+        csDrawPerson(ctx, cx - 30 * dpr, cy + 25 * dpr, 1.4 * dpr, '#e8d4b0', -6); // scientist
+        csDrawCoreBall(ctx, cx + 55 * dpr, cy - 10 * dpr, 14 * dpr, '#5df2ff'); // CORE-7
+        // friendly Lithari nearby
+        for (var fr = 0; fr < 4; fr++) {
+          var fa = t * 0.0003 + fr * 1.5;
+          csDrawRock(ctx, cx - 90 * dpr + fr * 45 * dpr + Math.sin(fa) * 8 * dpr, cy + 55 * dpr, 14 * dpr, fa, '#7ec8e8');
+        }
+        // sparkles of happiness
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (var sp = 0; sp < 25; sp++) {
+          ctx.fillStyle = '#ffd23f'; ctx.globalAlpha = 0.3 + 0.3 * Math.sin(t * 0.004 + sp);
+          ctx.beginPath(); ctx.arc((sp * 79 + t * 0.03) % w, h * 0.25 + Math.sin(sp + t * 0.002) * 40, 2 * dpr, 0, 6.283); ctx.fill();
+        }
+        ctx.restore();
+      } else if (phase === 1) {
+        // MALFUNCTION — reactor explosion
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        var boom = 0.5 + 0.5 * Math.sin(t * 0.008);
+        var bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 180 * dpr * boom);
+        bg.addColorStop(0, 'rgba(255,255,200,0.6)'); bg.addColorStop(0.3, 'rgba(255,80,20,0.4)'); bg.addColorStop(1, 'rgba(120,0,40,0)');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+        for (var f = 0; f < 35; f++) {
+          var fx = cx + Math.cos(f + t * 0.01) * (40 + local * 120) * dpr;
+          var fy = cy + Math.sin(f * 1.3 + t * 0.01) * (30 + local * 90) * dpr;
+          ctx.fillStyle = f % 2 ? '#ff8a3d' : '#ff3d81';
+          ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.arc(fx, fy, (4 + f % 5) * dpr, 0, 6.283); ctx.fill();
+        }
+        ctx.restore();
+        csDrawPerson(ctx, cx - 20 * dpr, cy + 20 * dpr, 1.2 * dpr, '#ffaa88', 4);
+        csDrawCoreBall(ctx, cx + 40 * dpr, cy, 12 * dpr, '#ff8a3d');
+        // rocks shaking
+        for (var sh = 0; sh < 5; sh++) {
+          csDrawRock(ctx, cx - 80 * dpr + sh * 40 * dpr + (Math.random() - 0.5) * 6 * dpr, cy + 50 * dpr, 13 * dpr, t * 0.01, '#ff6b6b');
+        }
+      } else if (phase === 2) {
+        // Corruption spreads into Lithari
+        csDrawCoreBall(ctx, cx, cy - 15 * dpr, 13 * dpr, '#5df2ff');
+        for (var pe = 0; pe < 6; pe++) {
+          var px = cx + (pe - 2.5) * 50 * dpr;
+          var py = cy + 45 * dpr;
+          var corrupt = local > pe * 0.12;
+          csDrawRock(ctx, px, py, 15 * dpr, t * 0.001 + pe, corrupt ? '#ff3d81' : '#7ec8e8');
+          if (corrupt) {
+            ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.4;
+            ctx.fillStyle = '#ff3d81'; ctx.beginPath(); ctx.arc(px, py, 22 * dpr, 0, 6.283); ctx.fill();
+            ctx.restore();
+          }
+        }
+        // shockwave rings
+        ctx.strokeStyle = 'rgba(255,61,129,0.4)'; ctx.lineWidth = 2 * dpr;
+        for (var ring = 0; ring < 3; ring++) {
+          ctx.beginPath(); ctx.arc(cx, cy, (50 + ring * 40 + local * 60) * dpr, 0, 6.283); ctx.stroke();
+        }
+      } else {
+        // They hunt the light — 3D approaching swarm
+        csDrawCoreBall(ctx, cx, cy, 14 * dpr, '#5df2ff');
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        for (var rk = 0; rk < 12; rk++) {
+          var ang = rk / 12 * 6.283 + t * 0.0005;
+          var dist = (160 - local * 70) * dpr;
+          var rz = 0.6 + (rk % 5) * 0.15;
+          var rp = project3d(Math.cos(ang) * 0.8, Math.sin(ang) * 0.5, rz, w, h, 2);
+          csDrawRock(ctx, rp.x, rp.y, (10 + rk % 4) * rp.s * dpr, ang, '#ff3d81');
+        }
+        // speed lines
+        ctx.strokeStyle = 'rgba(255,100,80,0.25)'; ctx.lineWidth = 1;
+        for (var sl = 0; sl < 15; sl++) {
+          var sy = (sl * 47 + t * 0.2) % h;
+          ctx.beginPath(); ctx.moveTo(w * 0.6, sy); ctx.lineTo(w, sy + 10); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+    // ——— GIFT: Mira leaves firewall ———
+    else if (style === 'gift') {
+      if (phase < 2) {
+        csDrawPerson(ctx, cx - 40 * dpr, cy + 20 * dpr, 1.3 * dpr, '#a8fff0', -8);
+        csDrawCoreBall(ctx, cx + 50 * dpr, cy, 16 * dpr, '#5df2ff');
+        // note / fragment floating from her hand
+        var fragY = cy - 10 * dpr - local * 30 * dpr;
+        ctx.save(); ctx.shadowColor = '#5df2ff'; ctx.shadowBlur = 20;
+        ctx.fillStyle = '#5df2ff'; ctx.beginPath(); ctx.arc(cx - 20 * dpr, fragY, 10 * dpr, 0, 6.283); ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = '700 ' + Math.round(10 * dpr) + 'px sans-serif';
+        ctx.textAlign = 'center'; ctx.fillText('S', cx - 20 * dpr, fragY + 4 * dpr);
+      } else {
+        // fragment alone in arena
+        for (var m = 0; m < 16; m++) {
+          ctx.globalAlpha = 0.3; ctx.fillStyle = '#5df2ff';
+          ctx.beginPath(); ctx.arc(cx + Math.cos(t * 0.001 + m) * 80 * dpr, cy + Math.sin(t * 0.001 + m) * 50 * dpr, 3 * dpr, 0, 6.283); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        ctx.save(); ctx.shadowColor = '#5df2ff'; ctx.shadowBlur = 24;
+        ctx.fillStyle = '#5df2ff'; ctx.beginPath(); ctx.arc(cx, cy, 18 * dpr, 0, 6.283); ctx.fill();
+        ctx.restore();
+      }
+    }
+    // ——— CUTTING / GUARDIAN / DISTRICT: combat story ———
+    else if (style === 'cutting' || style === 'guardian' || style === 'district') {
+      csDrawCoreBall(ctx, cx, cy, 14 * dpr, '#5df2ff');
+      // laser beam
+      ctx.save(); ctx.strokeStyle = '#ff3d81'; ctx.lineWidth = 3 * dpr; ctx.shadowColor = '#ff3d81'; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 180 * dpr, cy - 40 * dpr); ctx.stroke();
+      ctx.restore();
+      var n = style === 'district' ? 9 : 5;
+      for (var r = 0; r < n; r++) {
+        var hit = local > 0.6 && r < 2;
+        var rx = cx + 100 * dpr + r * 25 * dpr - local * 30 * dpr;
+        var ry = cy - 30 * dpr + Math.sin(r + t * 0.002) * 40 * dpr;
+        if (hit) {
+          // shatter
+          for (var sh = 0; sh < 6; sh++) {
+            ctx.fillStyle = '#ff8a3d'; ctx.globalAlpha = 1 - local;
+            ctx.fillRect(rx + Math.cos(sh) * local * 40 * dpr, ry + Math.sin(sh) * local * 40 * dpr, 4 * dpr, 4 * dpr);
+          }
+          ctx.globalAlpha = 1;
+        } else {
+          csDrawRock(ctx, rx, ry, (14 + r * 2) * dpr, t * 0.001 + r, style === 'cutting' ? '#ff8a3d' : '#ff3d81');
+        }
+      }
+      if (style === 'guardian' || style === 'district') {
+        // big guardian
+        csDrawRock(ctx, cx + 160 * dpr, cy, 40 * dpr + Math.sin(t * 0.003) * 4 * dpr, t * 0.0005, '#e0a8ff');
+      }
+    }
+    // ——— TOUCH: gentle stones ———
+    else if (style === 'touch') {
+      csDrawCoreBall(ctx, cx, cy, 16 * dpr, '#5df2ff');
+      for (var s = 0; s < 6; s++) {
+        var a2 = t * 0.00025 + s * 1.05;
+        var d2 = 70 * dpr + Math.sin(t * 0.001 + s) * 15 * dpr;
+        csDrawRock(ctx, cx + Math.cos(a2) * d2, cy + Math.sin(a2) * d2 * 0.65, 11 * dpr, a2, '#8b93b8');
+      }
+    }
+    // ——— AFTERMATH / CONFESSION ———
+    else if (style === 'aftermath' || style === 'confession') {
+      csDrawCoreBall(ctx, cx, cy, 12 * dpr, style === 'confession' ? '#b36bff' : '#5df2ff');
+      for (var d = 0; d < 12; d++) {
+        csDrawRock(ctx, (d * 97 + t * 0.02) % w, h * 0.55 + Math.sin(d + t * 0.001) * 30 * dpr, 8 * dpr, d, '#5a6280');
+      }
+      if (style === 'confession') {
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.font = 'italic ' + Math.round(14 * dpr) + 'px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('I was afraid.', cx, cy + 80 * dpr);
+      }
+    }
+    // ——— OVERSEER ———
+    else if (style === 'overseer') {
+      var pulse = 1 + 0.08 * Math.sin(t * 0.003);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      var og = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120 * dpr * pulse);
+      og.addColorStop(0, 'rgba(224,168,255,0.5)'); og.addColorStop(0.5, 'rgba(255,61,129,0.15)'); og.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = og; ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+      csDrawRock(ctx, cx, cy, 50 * dpr * pulse, t * 0.0003, '#e0a8ff');
+      csDrawCoreBall(ctx, cx - 100 * dpr, cy + 60 * dpr, 12 * dpr, '#5df2ff');
+      // faces in the dark (simple arcs)
+      for (var face = 0; face < 8; face++) {
+        var fa = face / 8 * 6.283 + t * 0.0002;
+        ctx.strokeStyle = 'rgba(200,180,255,0.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx + Math.cos(fa) * 100 * dpr, cy + Math.sin(fa) * 70 * dpr, 8 * dpr, 0, Math.PI); ctx.stroke();
+      }
+    }
+    // ——— QUIET (win) ———
+    else if (style === 'quiet') {
+      csDrawCoreBall(ctx, cx, cy, 10 * dpr * (1 - local * 0.3), 'rgba(93,242,255,0.5)');
+      ctx.globalAlpha = 0.3 * (1 - local * 0.5);
+      for (var q = 0; q < 6; q++) {
+        csDrawRock(ctx, cx + (q - 2.5) * 40 * dpr, cy + 50 * dpr, 8 * dpr, 0, '#4a5068');
+      }
+      ctx.globalAlpha = 1;
+    }
+    // ——— HELD (lose) ———
+    else if (style === 'held') {
+      var close = Math.min(1, local + phase * 0.2);
+      for (var h2 = 0; h2 < 10; h2++) {
+        var ha = h2 / 10 * 6.283;
+        var hd = (1 - close * 0.7) * 140 * dpr;
+        csDrawRock(ctx, cx + Math.cos(ha) * hd, cy + Math.sin(ha) * hd * 0.75, 14 * dpr, ha, '#8b93b8');
+      }
+      csDrawCoreBall(ctx, cx, cy, 12 * dpr * (1 - close * 0.4), '#5df2ff');
+    }
+    // default
+    else {
+      drawCsWireCore(ctx, w, h, t, mood);
+    }
+
+    // scene progress dots
+    ctx.save();
+    for (var dot = 0; dot < 4; dot++) {
+      ctx.fillStyle = dot === phase ? '#5df2ff' : 'rgba(139,147,184,0.4)';
+      ctx.beginPath(); ctx.arc(w / 2 - 30 * dpr + dot * 20 * dpr, h - 12 * dpr, 3 * dpr, 0, 6.283); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawCsFrame(now) {
+    if (!cutsceneOpen) { csRAF = 0; return; }
+    var c = $('csCanvas'), ctx = c.getContext('2d');
+    if (!c.width) resizeCsCanvas();
+    var w = c.width, h = c.height, dpr = w / (c.clientWidth || 1);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#05070f'; ctx.fillRect(0, 0, w, h);
+
+    var mood = (csScene && csScene.mood) || 'sad';
+    var style = csVideoStyle(csKey);
+    var t = now;
+
+    drawCsVideo(ctx, w, h, dpr, t, style, mood);
+
+    // particles
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (var q = csParticles.length - 1; q >= 0; q--) {
+      var pt = csParticles[q];
+      pt.t += 0.016;
+      if (pt.t > pt.life) { csParticles.splice(q, 1); continue; }
+      pt.x += pt.vx * 0.016; pt.y += pt.vy * 0.016;
+      var k = 1 - pt.t / pt.life;
+      ctx.globalAlpha = k * k * 0.85;
+      ctx.fillStyle = pt.c;
+      ctx.beginPath();
+      ctx.arc(pt.x * w, pt.y * h, pt.sz * dpr * (0.5 + k), 0, 6.283);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // scanlines + vignette
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    for (var sy = 0; sy < h; sy += 3 * dpr) ctx.fillRect(0, sy, w, 1 * dpr);
+    var vig = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, h * 0.75);
+    vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, w, h);
+
+    // speaking indicator
+    if (csSpeaking) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(93,242,255,0.7)';
+      ctx.font = '700 ' + Math.round(11 * dpr) + 'px "Chakra Petch", sans-serif';
+      ctx.textAlign = 'left';
+      var pulse = 0.5 + 0.5 * Math.sin(now / 200);
+      ctx.globalAlpha = pulse;
+      ctx.fillText('◉ NARRATING', 16 * dpr, 28 * dpr);
+      ctx.restore();
+    }
+
+    if (Math.random() < 0.12) spawnCsParticles(5, mood);
+    csRAF = requestAnimationFrame(drawCsFrame);
+  }
+
+  function showCutscene(key, onDone) {
+    if (mode.id !== 'story' || storySeen[key]) {
+      if (onDone) onDone();
+      return;
+    }
+    storySeen[key] = true;
+    var sc = STORY[key];
+    if (!sc) { if (onDone) onDone(); return; }
+    cutsceneOpen = true;
+    down = false; keys = {};
+    csScene = sc;
+    csKey = key;
+    csStartT = performance.now();
+    csFullText = sc.body;
+    csTyped = sc.body;
+    csParticles = [];
+    $('csTag').textContent = sc.tag;
+    $('csTitle').textContent = sc.title;
+    $('csBody').textContent = sc.body;
+    $('cutscene').hidden = false;
+    cutsceneResolve = onDone || null;
+    initCsStars();
+    resizeCsCanvas();
+    spawnCsParticles(90, sc.mood || 'sad');
+    if (!csRAF) csRAF = requestAnimationFrame(drawCsFrame);
+    // Warm voices list (needed on some browsers)
+    try { window.speechSynthesis.getVoices(); } catch (e) {}
+    speakCutscene(sc.body);
+    tone(140, 0.5, 'sine', 0.12, 280);
+    noise(0.6, 0.15, 800);
+  }
+
+  function closeCutscene() {
+    if (!cutsceneOpen) return;
+    stopCsVoice();
+    $('cutscene').hidden = true;
+    cutsceneOpen = false;
+    csRAF = 0;
+    csParticles = [];
+    var cb = cutsceneResolve;
+    cutsceneResolve = null;
+    if (cb) cb();
+  }
+
   function begin() {
     show(null);
     best = loadBest();
     initAudio();
-    reset(); running = true;
+    reset();
+    running = true;
     tone(300, 0.15, 'square', 0.12, 600);
     setTimeout(function () { tone(600, 0.2, 'square', 0.12, 900); }, 120);
   }
@@ -1208,7 +2624,10 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   var last = 0;
   function frame(now) {
     var dt = Math.min(0.033, (now - last) / 1000 || 0.016); last = now;
-    if (running && !adminOpen) update(dt); else setHum(false);
+    // Global half-speed + existing slow-mo on boss kills
+    var sdt = dt * TIME_SCALE;
+    if (slow > 0) { slow -= dt; sdt = dt * TIME_SCALE * 0.3; }
+    if (running && !adminOpen && !cutsceneOpen) update(sdt); else setHum(false);
     render();
     requestAnimationFrame(frame);
   }
@@ -1216,11 +2635,16 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   window.addEventListener('keydown', function (e) {
     var tg = e.target && e.target.tagName;
     if (e.key === '`' || e.key === 'F2') { e.preventDefault(); toggleAdmin(); return; }
+    if (cutsceneOpen) {
+      if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape') { e.preventDefault(); closeCutscene(); }
+      return;
+    }
     if (adminOpen || tg === 'INPUT' || tg === 'TEXTAREA' || tg === 'SELECT') { if (e.key === 'Escape' && adminOpen) toggleAdmin(); return; }
     var k = e.key.toLowerCase();
     keys[k] = true;
     if (k === 'm') { initAudio(); setMuted(!muted); }
     if (k === 'escape' && !$('shop').hidden) $('shopBack').click();
+    if (k === 'escape' && !$('power').hidden) $('powerBack').click();
     if (k.indexOf('arrow') === 0 || k === ' ') e.preventDefault();
     if ((k === ' ' || k === 'enter') && !running && !$('over').hidden && document.activeElement && document.activeElement.tagName !== 'BUTTON') begin();
   });
@@ -1231,12 +2655,14 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   window.addEventListener('pointerup', function () { down = false; });
   window.addEventListener('pointercancel', function () { down = false; });
   cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', function () { resize(); if (cutsceneOpen) resizeCsCanvas(); });
   Array.prototype.forEach.call(document.querySelectorAll('button.mode'), function (btn) {
     btn.addEventListener('click', function () { mode = MODES[btn.getAttribute('data-mode')]; begin(); });
   });
   $('mute').addEventListener('click', function () { initAudio(); setMuted(!muted); });
   setMuted(muted);
+  $('csContinue').addEventListener('click', closeCutscene);
+  $('csSkip').addEventListener('click', closeCutscene);
   $('again').addEventListener('click', begin);
   $('change').addEventListener('click', function () {
     show('start'); $('menuView').hidden = true; $('modeView').hidden = false; reset();
@@ -1248,6 +2674,11 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
   $('shopBack').addEventListener('click', function () { show(shopReturn); });
   $('tabBall').addEventListener('click', function () { shopTab = 'ball'; $('shopMsg').textContent = ''; renderShop(); });
   $('tabLaser').addEventListener('click', function () { shopTab = 'laser'; $('shopMsg').textContent = ''; renderShop(); });
+  $('tabRock').addEventListener('click', function () { shopTab = 'rock'; $('shopMsg').textContent = ''; renderShop(); });
+  $('tabBg').addEventListener('click', function () { shopTab = 'bg'; $('shopMsg').textContent = ''; renderShop(); });
+  $('openPower').addEventListener('click', function () { openPower('start'); });
+  $('overPower').addEventListener('click', function () { openPower('over'); });
+  $('powerBack').addEventListener('click', function () { show(powerReturn); });
   applyTheme(); coinsText();
 
   // admin wiring
@@ -1308,6 +2739,13 @@ button:focus-visible { outline: 3px solid var(--fg); outline-offset: 3px; }
 
   resize();
   reset();
+  // Warm up speech voices for story narration
+  try {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = function () { window.speechSynthesis.getVoices(); };
+    }
+  } catch (e) {}
   // attract mode: a few rocks drifting behind the start card
   for (var i = 0; i < 5; i++) addEnemy(Math.random() * W, Math.random() * H, 20 + Math.random() * 18, (Math.random() - .5) * 60, (Math.random() - .5) * 60);
   requestAnimationFrame(frame);
